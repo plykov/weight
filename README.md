@@ -4,7 +4,9 @@ An offline-capable, installable web app for tracking weight loss with lean-mass 
 
 Built for: 52-year-old male, 178 cm, starting 105 kg (BMI 33.1), desk-based with regular activity, hypertension/dyslipidemia, joint-sparing training.
 
-**Data never leaves your phone.** Everything is stored in the browser's local storage on your device. There is no account, no server, no analytics, no network calls of any kind after the first load.
+**Your data never leaves your phone.** Everything you log is stored in the browser's local storage on your device. There is no account, no server, no analytics, and nothing is ever uploaded.
+
+The one network call the app makes is the barcode lookup: when you scan a product, it sends **only that barcode number** to [Open Food Facts](https://world.openfoodfacts.org) (a non-commercial open database) and gets the nutrition values back. No weight, no food log, no identifiers. The result is cached locally, so each product is looked up once. Skip scanning and the app never touches the network at all.
 
 ---
 
@@ -45,11 +47,11 @@ https://plykov.github.io/weight/
 
 Open `https://plykov.github.io/weight/` in your phone's browser.
 
-**iPhone (Safari — this must be Safari, not Chrome):**
-Tap the **Share** button (square with an arrow) → scroll down → **Add to Home Screen** → **Add**.
+**Android (Chrome) — recommended:**
+Tap the **Install** banner the app shows, or **⋮** menu → **Install app**. It lands in your app drawer with its own icon, runs full-screen, and scanning works.
 
-**Android (Chrome):**
-Either tap the **Install** banner the app shows you, or use the **⋮** menu → **Install app** / **Add to Home screen**.
+**iPhone (Safari):**
+Share → **Add to Home Screen**. Everything works except barcode scanning — use search or manual entry there.
 
 It now opens full-screen with no browser chrome, works with no signal, and appears in your app switcher like any other app.
 
@@ -57,7 +59,7 @@ It now opens full-screen with no browser chrome, works with no signal, and appea
 
 ## Updating it later
 
-Upload a changed `index.html` the same way. Bump the `VERSION` string at the top of `sw.js` (e.g. `wt-v1.0.0` → `wt-v1.0.1`) in the same commit — that's what tells installed copies to fetch the new version instead of serving the cached one.
+Upload a changed `index.html` the same way. Bump the `VERSION` string at the top of `sw.js` (currently `wt-v1.1.0` → `wt-v1.1.1`) in the same commit — that's what tells installed copies to fetch the new version instead of serving the cached one.
 
 The app then updates on its next launch. Your logged data is untouched by updates.
 
@@ -70,6 +72,33 @@ Local storage is genuinely local: it does not sync between devices, and it is er
 **Log → Backup → Export JSON** every few weeks, and always before changing phones. Save the file to iCloud/Google Drive/email. **Import** restores it — merged by date, so importing an old backup won't wipe newer entries.
 
 **Export CSV** gives you the same data with fat mass and lean mass computed, for a spreadsheet or to hand to a doctor or dietitian.
+
+---
+
+## Food tracking and barcode scanning
+
+**Built for Android.** Chrome on Android supports the native `BarcodeDetector` API, so scanning needs no third-party library — nothing to download, and it works offline. (iOS Safari still has this API disabled by default even in version 26.4, which is why this build targets Android.)
+
+**Three ways to add food:**
+
+1. **Scan a barcode** — camera opens, detects EAN-13/EAN-8/UPC/Code-128, looks the product up in [Open Food Facts](https://world.openfoodfacts.org), and asks only for the portion size. Torch button appears if your camera supports it.
+2. **Search the library** — ~65 seeded staples with per-100 g values, searchable in English or Russian (`творог`, `гречка`, `сельдь`). Common portions are one tap (1 egg = 50 g, 1 tbsp oil = 14 g, 1 slice rye = 30 g).
+3. **Enter manually** — type the values off the packet. It's saved to your list for next time, and warns you if the macros don't add up to the stated calories.
+
+**Every scanned product is cached on your phone** the first time you look it up. Scan the same tvorog next week with no signal and it resolves instantly from local storage — verified in testing that a repeat scan makes zero network calls.
+
+If a barcode isn't in Open Food Facts, the manual form opens with the barcode pre-filled, so entering it once fixes it permanently for you.
+
+**The daily dashboard** shows calories left as the headline, then protein, fat and carbs as consumed / target / remaining, with overflow shown in red. Fibre is tracked against 38 g. Below that, calories split by meal — breakfast through dinner in an ordered blue ramp.
+
+**It feeds the rest of the app.** Daily totals write into the Today tab's calorie and protein fields, so the protein-shortfall flag and the lean-mass-risk logic run on what you actually ate rather than a manual estimate.
+
+### On accuracy
+
+The seeded library holds **reference values per 100 g** — real brands vary, and every item is editable. Two things matter more than the database:
+
+- **Cooking changes weight enormously.** 100 g of dry buckwheat becomes roughly 300 g cooked. Log food in the state you weighed it, and pick the matching library entry (both dry and cooked are included for the common ones).
+- **Open Food Facts is crowd-sourced.** Most entries are accurate; some aren't. If a scanned product's numbers look wrong, edit them — your version is what gets saved.
 
 ---
 
