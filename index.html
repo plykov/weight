@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Weight Tracker</title>
+<meta name="description" content="Evidence-based weight loss tracker with lean-mass protection, body composition, blood pressure and adaptive calorie targets.">
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#1a1a19" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Weight">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="icon" href="./icon-192.png">
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1:#fcfcfb; --page:#f9f9f7;
+    --text-primary:#0b0b0b; --text-secondary:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+    --series-1:#2a78d6; --series-2:#eb6834; --series-3:#1baf7a;
+    --good:#0ca30c; --warning:#fab219; --critical:#d03b3b; --success-text:#006300;
+    --proj:#898781;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1:#1a1a19; --page:#0d0d0d;
+    --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+    --series-1:#3987e5; --series-2:#d95926; --series-3:#199e70;
+    --good:#0ca30c; --warning:#fab219; --critical:#d03b3b; --success-text:#0ca30c;
+    --proj:#898781;
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { overscroll-behavior-y:contain; }
+  body {
+    margin:0; background:var(--page); color:var(--text-primary);
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif; font-size:15px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:calc(66px + env(safe-area-inset-bottom));
+  }
+  .wrap { max-width:760px; margin:0 auto; padding:0 14px 26px; }
+
+  header.top {
+    position:sticky; top:0; z-index:20; background:var(--page);
+    padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+    border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  header.top .id { min-width:0; }
+  header.top h1 { font-size:16px; margin:0; letter-spacing:-.01em; white-space:nowrap; }
+  header.top .sub { font-size:11.5px; color:var(--muted); margin:1px 0 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .iconbtn {
+    flex:0 0 auto; width:36px; height:36px; border-radius:9px; border:1px solid var(--border);
+    background:var(--surface-1); color:var(--text-primary); font-size:15px; cursor:pointer;
+    display:grid; place-items:center;
+  }
+
+  .card { background:var(--surface-1); border:1px solid var(--border); border-radius:14px; padding:15px 15px; margin-top:13px; }
+  .card h2 { font-size:14.5px; margin:0 0 2px; letter-spacing:-.005em; }
+  .card .cap { color:var(--muted); font-size:12px; margin:0 0 12px; line-height:1.45; }
+
+  .hero { text-align:center; padding:20px 15px 17px; }
+  .hero .big { font-size:52px; font-weight:600; letter-spacing:-.03em; line-height:1; font-variant-numeric:tabular-nums; }
+  .hero .big small { font-size:19px; font-weight:500; color:var(--text-secondary); margin-left:3px; }
+  .hero .lbl { font-size:11.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:9px; }
+  .hero .d { margin-top:8px; font-size:14px; color:var(--text-secondary); }
+
+  .tiles { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:13px; }
+  @media (min-width:560px){ .tiles { grid-template-columns:repeat(4,1fr); } }
+  .tile { background:var(--surface-1); border:1px solid var(--border); border-radius:13px; padding:12px 13px; }
+  .tile .lbl { font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:5px; }
+  .tile .val { font-size:23px; font-weight:600; letter-spacing:-.02em; line-height:1.1; font-variant-numeric:tabular-nums; }
+  .tile .val small { font-size:12.5px; font-weight:500; color:var(--text-secondary); margin-left:2px; }
+  .tile .delta { font-size:11.5px; margin-top:3px; color:var(--text-secondary); line-height:1.35; }
+  .up { color:var(--success-text); font-weight:600; }
+  .down { color:var(--critical); font-weight:600; }
+
+  .flag { display:block; padding:11px 13px; border-radius:11px; font-size:13px; margin-top:10px; line-height:1.45; }
+  .flag.warn { background:rgba(250,178,25,.15); }
+  .flag.ok { background:rgba(12,163,12,.13); }
+  .flag.crit { background:rgba(208,59,59,.14); }
+  .flag b { font-weight:700; }
+
+  svg { display:block; width:100%; }
+  .gridline { stroke:var(--grid); stroke-width:1; }
+  .axisline { stroke:var(--axis); stroke-width:1; }
+  .tick { fill:var(--muted); font-size:10.5px; font-variant-numeric:tabular-nums; }
+  .dlabel { fill:var(--text-secondary); font-size:11px; font-weight:600; }
+  .legend { display:flex; gap:13px; flex-wrap:wrap; font-size:11.5px; color:var(--text-secondary); margin-bottom:9px; }
+  .legend span { display:inline-flex; align-items:center; gap:5px; }
+  .sw { width:12px; height:3px; border-radius:2px; display:inline-block; }
+  .sw.dash { background:none; border-top:2px dashed var(--proj); height:0; width:14px; }
+  .tip {
+    position:fixed; pointer-events:none; opacity:0; transition:opacity .09s;
+    background:var(--surface-1); border:1px solid var(--border); border-radius:9px;
+    padding:8px 11px; font-size:12.5px; box-shadow:0 8px 26px rgba(0,0,0,.28); z-index:60;
+    color:var(--text-primary); min-width:132px;
+  }
+  .tip .th { font-weight:600; margin-bottom:4px; font-size:11.5px; }
+  .tip .tr { display:flex; justify-content:space-between; gap:14px; color:var(--text-secondary); }
+  .tip .tr b { color:var(--text-primary); font-variant-numeric:tabular-nums; }
+
+  form.log { display:grid; grid-template-columns:repeat(2,1fr); gap:11px 10px; }
+  @media (min-width:560px){ form.log { grid-template-columns:repeat(3,1fr); } }
+  form.log .full { grid-column:1/-1; }
+  label { display:block; font-size:10.5px; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:.05em; }
+  input, select {
+    width:100%; padding:11px 10px; border-radius:10px; font-size:16px;
+    border:1px solid var(--border); background:var(--page); color:var(--text-primary); font-family:inherit;
+  }
+  input:focus, select:focus { outline:2px solid var(--series-1); outline-offset:-1px; }
+  button {
+    padding:12px 15px; border-radius:11px; border:1px solid var(--border);
+    background:var(--surface-1); color:var(--text-primary); font-size:14px;
+    font-family:inherit; cursor:pointer; font-weight:500;
+  }
+  button.pri { background:var(--series-1); color:#fff; border-color:transparent; font-weight:600; }
+  button.wide { width:100%; }
+  .btnrow { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .btnrow button { flex:1 1 auto; min-width:120px; }
+
+  .sec { font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); grid-column:1/-1; margin:6px 0 -4px; font-weight:600; }
+
+  table { width:100%; border-collapse:collapse; font-size:12.5px; font-variant-numeric:tabular-nums; }
+  th { text-align:right; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:600; padding:7px 6px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  td { text-align:right; padding:7px 6px; border-bottom:1px solid var(--border); color:var(--text-secondary); white-space:nowrap; }
+  td.k { color:var(--text-primary); font-weight:600; }
+  .scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+  .ms { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
+  .ms:last-child { border-bottom:none; }
+  .ms .name { flex:1 1 auto; font-size:13px; min-width:0; }
+  .ms .name em { display:block; font-style:normal; color:var(--muted); font-size:11px; }
+  .bar { flex:0 0 78px; height:7px; background:var(--grid); border-radius:4px; overflow:hidden; }
+  .bar i { display:block; height:100%; border-radius:4px; background:var(--series-1); }
+  .ms .pct { flex:0 0 62px; text-align:right; font-size:11.5px; color:var(--text-secondary); font-variant-numeric:tabular-nums; }
+  .ms.done .bar i { background:var(--good); }
+  .ms.done .pct { color:var(--success-text); font-weight:600; }
+
+  .targets { display:grid; grid-template-columns:repeat(2,1fr); gap:9px; }
+  @media (min-width:560px){ .targets { grid-template-columns:repeat(3,1fr); } }
+  .targets div { border:1px solid var(--border); border-radius:11px; padding:10px 11px; }
+  .targets .t { font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  .targets .v { font-size:16px; font-weight:600; margin-top:2px; }
+  .targets .n { font-size:11px; color:var(--text-secondary); margin-top:2px; line-height:1.35; }
+
+  nav.tabs {
+    position:fixed; left:0; right:0; bottom:0; z-index:30;
+    background:var(--surface-1); border-top:1px solid var(--border);
+    display:grid; grid-template-columns:repeat(4,1fr);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  nav.tabs button {
+    border:none; background:none; border-radius:0; padding:9px 2px 10px;
+    font-size:10.5px; color:var(--muted); display:grid; gap:3px; justify-items:center; font-weight:500;
+  }
+  nav.tabs button .g { font-size:17px; line-height:1; }
+  nav.tabs button[aria-current="true"] { color:var(--series-1); font-weight:700; }
+
+  .panel { display:none; }
+  .panel.on { display:block; }
+  .note { font-size:12px; color:var(--text-secondary); margin:11px 0 0; line-height:1.5; }
+  .disc { font-size:11.5px; color:var(--muted); margin-top:18px; line-height:1.55; border-top:1px solid var(--border); padding-top:13px; }
+  ul.plan { margin:6px 0 0; padding-left:18px; font-size:13.5px; color:var(--text-secondary); }
+  ul.plan li { margin-bottom:5px; }
+  ul.plan b { color:var(--text-primary); }
+  .exl { width:100%; font-size:13px; }
+  .exl td { padding:6px 4px; }
+  .banner {
+    background:var(--series-1); color:#fff; border-radius:12px; padding:12px 14px; margin-top:13px;
+    display:flex; align-items:center; gap:10px; justify-content:space-between; font-size:13.5px;
+  }
+  .banner button { background:rgba(255,255,255,.2); color:#fff; border-color:transparent; padding:8px 13px; font-size:13px; }
+  .hide { display:none !important; }
+  .saved { font-size:11.5px; color:var(--success-text); font-weight:600; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="id">
+    <h1>Weight Tracker</h1>
+    <p class="sub" id="hdrSub">52 y · 178 cm · start 105 kg</p>
+  </div>
+  <button class="iconbtn" id="themeBtn" aria-label="Toggle theme">◐</button>
+</header>
+
+<div class="wrap">
+
+  <!-- ================= TODAY ================= -->
+  <section class="panel on" id="p-today">
+    <div id="installBanner" class="banner hide">
+      <span>Install this on your home screen for one-tap access.</span>
+      <button id="installBtn">Install</button>
+    </div>
+
+    <div class="card hero">
+      <div class="lbl">7-day average</div>
+      <div class="big" id="heroW">105.0<small>kg</small></div>
+      <div class="d" id="heroD">baseline</div>
+    </div>
+
+    <div class="tiles" id="tiles"></div>
+    <div id="flags"></div>
+
+    <div class="card">
+      <h2>Log today</h2>
+      <p class="cap">Weigh every morning, post-void, before food or drink. Everything is optional — fill in what you have.</p>
+      <form class="log" id="logForm">
+        <div class="full"><label for="f_date">Date</label><input type="date" id="f_date" required></div>
+        <div><label for="f_weight">Weight (kg)</label><input type="number" inputmode="decimal" step="0.1" id="f_weight" placeholder="104.2"></div>
+        <div><label for="f_sleep">Sleep (h)</label><input type="number" inputmode="decimal" step="0.25" id="f_sleep" placeholder="7.5"></div>
+        <div><label for="f_steps">Steps</label><input type="number" inputmode="numeric" id="f_steps" placeholder="8200"></div>
+        <div><label for="f_protein">Protein (g)</label><input type="number" inputmode="numeric" id="f_protein" placeholder="150"></div>
+        <div><label for="f_kcal">Calories</label><input type="number" inputmode="numeric" id="f_kcal" placeholder="2150"></div>
+        <div><label for="f_alc">Alcohol (drinks)</label><input type="number" inputmode="decimal" step="0.5" id="f_alc" placeholder="0"></div>
+        <div><label for="f_train">Lifted today</label><select id="f_train"><option value="0">No</option><option value="1">Yes</option></select></div>
+        <div><label for="f_waist">Waist (cm)</label><input type="number" inputmode="decimal" step="0.5" id="f_waist" placeholder="112"></div>
+
+        <div class="sec">Smart scale — same conditions every time</div>
+        <div><label for="f_bf">Body fat (%)</label><input type="number" inputmode="decimal" step="0.1" id="f_bf" placeholder="33.5"></div>
+        <div><label for="f_muscle">Muscle mass (kg)</label><input type="number" inputmode="decimal" step="0.1" id="f_muscle" placeholder="66.8"></div>
+        <div><label for="f_bone">Bone mass (kg)</label><input type="number" inputmode="decimal" step="0.1" id="f_bone" placeholder="3.4"></div>
+        <div><label for="f_water">Body water (%)</label><input type="number" inputmode="decimal" step="0.1" id="f_water" placeholder="48"></div>
+
+        <div class="sec">Blood pressure</div>
+        <div><label for="f_sys">Systolic</label><input type="number" inputmode="numeric" id="f_sys" placeholder="142"></div>
+        <div><label for="f_dia">Diastolic</label><input type="number" inputmode="numeric" id="f_dia" placeholder="90"></div>
+
+        <div class="full"><button class="pri wide" type="submit">Save entry</button></div>
+      </form>
+      <p class="note" id="savedNote"></p>
+    </div>
+
+    <div class="card">
+      <h2>Getting the smart scale to tell you the truth</h2>
+      <p class="cap" style="margin-bottom:0">Consumer impedance scales are poor at <em>absolute</em> body fat — a validated multi-frequency device still read men <b>4.2 percentage points low</b> versus DXA — but excellent at <b>tracking change</b> (test–retest ICC 0.987–0.995). That only holds if conditions are identical each time:</p>
+      <ul class="plan">
+        <li><b>Same time of day</b> — first thing in the morning</li>
+        <li><b>After the toilet, before food or drink</b></li>
+        <li><b>Bare feet, dry</b> — damp soles read differently</li>
+        <li><b>Not after training, sauna, or alcohol</b> — both shift body water badly</li>
+        <li><b>Weekly, not daily</b> — the day-to-day noise is bigger than the real change</li>
+      </ul>
+      <p class="note">Treat the number's <em>direction</em> as real and its <em>value</em> as approximate. Bone mass barely moves over months and is largely derived from the same model — log it if you like, but don't let it drive decisions.</p>
+    </div>
+  </section>
+
+  <!-- ================= TRENDS ================= -->
+  <section class="panel" id="p-trends">
+    <div class="card">
+      <h2>Weight trajectory</h2>
+      <p class="cap">The 7-day average is the number to act on. Daily readings swing ±1.5 kg on water alone.</p>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--series-1)"></i> 7-day average</span>
+        <span><i class="sw" style="background:var(--series-1);opacity:.35"></i> Daily</span>
+        <span><i class="sw dash"></i> Projected</span>
+      </div>
+      <svg id="weightChart" role="img" aria-label="Weight over time versus projection"></svg>
+    </div>
+
+    <div class="card">
+      <h2>Where the loss is coming from</h2>
+      <p class="cap">The chart that decides whether this worked. Both shown as change since your first scale reading, so they share one scale: fat should dive, lean should hug the zero line.</p>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--series-2)"></i> Fat mass change</span>
+        <span><i class="sw" style="background:var(--series-3)"></i> Lean mass change</span>
+      </div>
+      <svg id="compChart" role="img" aria-label="Fat mass and lean mass over time"></svg>
+      <p class="note" id="compNote">Add a body fat reading from your scale to populate this.</p>
+    </div>
+
+    <div class="card">
+      <h2>Waist circumference</h2>
+      <p class="cap">Best proxy for visceral fat. European male thresholds: 102 cm and 94 cm.</p>
+      <svg id="waistChart" role="img" aria-label="Waist circumference over time"></svg>
+    </div>
+
+    <div class="card">
+      <h2>Blood pressure</h2>
+      <p class="cap">Expect roughly −1.05 mmHg systolic per kg lost. Tell your doctor if it falls while you're on medication.</p>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--series-2)"></i> Systolic</span>
+        <span><i class="sw" style="background:var(--series-3)"></i> Diastolic</span>
+      </div>
+      <svg id="bpChart" role="img" aria-label="Blood pressure over time"></svg>
+    </div>
+
+    <div class="card">
+      <h2>Resistance sessions per week</h2>
+      <p class="cap">Target 3. This is the variable that decides whether you lose fat or muscle.</p>
+      <svg id="trainChart" role="img" aria-label="Resistance sessions per week"></svg>
+    </div>
+
+    <div class="card">
+      <h2>Sleep duration</h2>
+      <p class="cap">Below 7 h roughly halves the fat fraction of what you lose (Nedeltcheva 2010).</p>
+      <svg id="sleepChart" role="img" aria-label="Average sleep per week"></svg>
+    </div>
+
+    <div class="card">
+      <h2>Milestones</h2>
+      <p class="cap">Health thresholds, not round numbers.</p>
+      <div id="milestones"></div>
+    </div>
+  </section>
+
+  <!-- ================= LOG ================= -->
+  <section class="panel" id="p-log">
+    <div class="card">
+      <h2>All entries</h2>
+      <p class="cap" id="tableCap">No entries yet.</p>
+      <div class="scroll"><table><thead><tr>
+        <th>Date</th><th>Wk</th><th>Weight</th><th>7-d</th><th>BF%</th><th>Fat</th><th>Lean</th>
+        <th>Waist</th><th>BP</th><th>Sleep</th><th>Steps</th><th>Prot</th><th>kcal</th><th>Lift</th><th>Alc</th><th></th>
+      </tr></thead><tbody id="tbody"></tbody></table></div>
+      <div class="btnrow"><button id="moreBtn" class="hide">Show all</button></div>
+    </div>
+
+    <div class="card">
+      <h2>Backup</h2>
+      <p class="cap">Your data is stored on this device only — it is never sent anywhere. Export a copy every few weeks, and before changing phones.</p>
+      <div class="btnrow">
+        <button id="exportBtn">Export JSON</button>
+        <button id="csvBtn">Export CSV</button>
+        <button id="importBtn">Import</button>
+      </div>
+      <input type="file" id="fileIn" accept=".json,application/json" class="hide">
+      <div class="btnrow">
+        <button id="demoBtn">Load 8-week example</button>
+        <button id="clearBtn">Clear all data</button>
+      </div>
+      <p class="note" id="storeNote"></p>
+    </div>
+  </section>
+
+  <!-- ================= PLAN ================= -->
+  <section class="panel" id="p-plan">
+    <div class="card">
+      <h2>Daily targets</h2>
+      <p class="cap">Recalculated automatically at each 5 kg lost, and from your measured lean mass when available.</p>
+      <div class="targets" id="targets"></div>
+      <p class="note" id="recalcNote"></p>
+    </div>
+
+    <div class="card">
+      <h2>Session A — full body</h2>
+      <p class="cap">Alternate A and B, three times a week. Progress when you finish all sets at the top of the rep range with 2 reps left in the tank.</p>
+      <table class="exl">
+        <tr><td>Leg press, controlled range</td><td style="text-align:right">3 × 10–12</td></tr>
+        <tr><td>Chest press (machine or dumbbell)</td><td style="text-align:right">3 × 10–12</td></tr>
+        <tr><td>Seated cable row</td><td style="text-align:right">3 × 10–12</td></tr>
+        <tr><td>Lat pulldown</td><td style="text-align:right">3 × 10–12</td></tr>
+        <tr><td>Leg curl</td><td style="text-align:right">3 × 12–15</td></tr>
+        <tr><td>Plank / dead bug</td><td style="text-align:right">3 × 30–45 s</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Session B — full body</h2>
+      <table class="exl">
+        <tr><td>Goblet squat to box, or hip thrust</td><td style="text-align:right">3 × 10–12</td></tr>
+        <tr><td>Incline dumbbell press</td><td style="text-align:right">3 × 10–12</td></tr>
+        <tr><td>Chest-supported row</td><td style="text-align:right">3 × 10–12</td></tr>
+        <tr><td>Seated shoulder press</td><td style="text-align:right">3 × 10–12</td></tr>
+        <tr><td>Leg extension, partial range</td><td style="text-align:right">3 × 12–15</td></tr>
+        <tr><td>Pallof press / side plank</td><td style="text-align:right">3 × each side</td></tr>
+      </table>
+      <p class="note"><b>Avoid for now:</b> running, jumping, barbell back squats, conventional deadlifts, high-impact HIIT. Revisit at 90 kg with a professional assessment.</p>
+    </div>
+
+    <div class="card">
+      <h2>The five things that decide this</h2>
+      <ul class="plan">
+        <li><b>150 g protein a day.</b> Most commonly missed, most consequential.</li>
+        <li><b>Three resistance sessions a week, for years.</b> The difference between losing 20 kg and losing 20 kg well.</li>
+        <li><b>Alcohol.</b> Highest-leverage single change in your profile.</li>
+        <li><b>7–8 hours of sleep.</b> Decides what tissue you lose, not just how you feel.</li>
+        <li><b>A deficit you can hold for a year</b>, not one you can survive for six weeks.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Food, adapted to what you actually eat</h2>
+      <ul class="plan">
+        <li><b>Build on:</b> tvorog, kefir, Greek yoghurt, eggs, chicken and turkey breast, white fish, unsalted oily fish, lentils and beans, grechka, barley, oats, rye bread, cabbage, beetroot, carrot, tomato, cucumber, olive oil, walnuts.</li>
+        <li><b>Cut back hard:</b> salted and smoked fish and meats, salo, kolbasa, pickled vegetables, mayonnaise salads, white bread and pastries, pelmeni in quantity, sweetened drinks and compote, salt at the table.</li>
+        <li><b>Easy swap:</b> Greek yoghurt for mayonnaise in Olivier — about 280 kcal off a serving, and it works better than you'd expect.</li>
+        <li><b>Alcohol:</b> zero during the loss phase is the strongest recommendation. If not, cap at 3–4 drinks a week, never more than 2 in a sitting, always with food.</li>
+      </ul>
+    </div>
+
+    <p class="disc">
+      <b>Not medical advice.</b> Targets are model estimates (Mifflin–St Jeor with activity multipliers and adaptive
+      recalculation); individual energy requirements vary ±10–15%. Adjust from your own observed rate of change over the
+      first 3–4 weeks rather than trusting the formula. Blood pressure falls as weight falls — if you take
+      antihypertensive medication, monitor at home and keep your doctor informed, since doses often need reducing.
+      Discuss the training plan with a clinician before starting, particularly given reported joint and back issues.
+    </p>
+  </section>
+
+</div>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="today" aria-current="true"><span class="g">◉</span>Today</button>
+  <button data-tab="trends"><span class="g">◈</span>Trends</button>
+  <button data-tab="log"><span class="g">☰</span>Log</button>
+  <button data-tab="plan"><span class="g">✎</span>Plan</button>
+</nav>
+
+<div class="tip" id="tip"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ================= profile & constants ================= */
+  const HCM = 178, H = 1.78, AGE = 52, W0 = 105.0, START = "2026-08-14", KPK = 7700;
+  const KEY = "wt.v1";
+
+  /* ================= storage (graceful) ================= */
+  let entries = [], showAll = false, storageOK = true;
+  function load() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) { const d = JSON.parse(raw); if (Array.isArray(d.entries)) entries = d.entries; }
+    } catch (e) { storageOK = false; }
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify({ v: 1, saved: new Date().toISOString(), entries })); }
+    catch (e) { storageOK = false; }
+  }
+
+  /* ================= model ================= */
+  const bmr = w => 10 * w + 6.25 * HCM - 5 * AGE + 5;
+  const af = wk => wk <= 4 ? 1.40 : (wk <= 16 ? 1.45 : 1.50);
+  function project(att) {
+    let w = W0, intake = 2150, nxt = W0 - 5; const out = [{ week: 0, w: W0 }];
+    for (let wk = 1; wk <= 78; wk++) {
+      const a = af(wk);
+      w -= ((bmr(w) * a - intake) * 7 * att) / KPK;
+      if (w <= nxt) { intake = Math.max(Math.round((bmr(w) * a - 500) / 10) * 10, Math.round(bmr(w) * 1.15 / 10) * 10); nxt = w - 5; }
+      out.push({ week: wk, w });
+    }
+    return out;
+  }
+  const projGood = project(0.85), projTyp = project(0.60);
+
+  /* ================= helpers ================= */
+  const dayMs = 864e5;
+  const parseD = s => new Date(s + "T00:00:00");
+  const daysFrom = d => Math.round((parseD(d) - parseD(START)) / dayMs);
+  const weekOf = d => Math.max(0, Math.floor(daysFrom(d) / 7));
+  const sorted = () => [...entries].sort((a, b) => a.date < b.date ? -1 : 1);
+  const bmiOf = w => w / (H * H);
+  const fmt = (v, d = 1) => v == null || isNaN(v) ? "—" : Number(v).toFixed(d);
+  const weeksIn = () => { const s = sorted(); return s.length ? weekOf(s[s.length - 1].date) : 0; };
+
+  function rollingAvg() {
+    const s = sorted().filter(e => e.weight != null);
+    return s.map((e, i) => {
+      const cut = parseD(e.date).getTime() - 6 * dayMs;
+      const win = s.slice(0, i + 1).filter(x => parseD(x.date).getTime() >= cut);
+      return { date: e.date, week: daysFrom(e.date) / 7, avg: win.reduce((a, x) => a + x.weight, 0) / win.length, raw: e.weight };
+    });
+  }
+  const latestW = () => { const r = rollingAvg(); return r.length ? r[r.length - 1].avg : W0; };
+  const lastOf = k => { const s = sorted().filter(e => e[k] != null); return s.length ? s[s.length - 1] : null; };
+
+  /* body composition: needs weight + body fat % on the same entry */
+  function compSeries() {
+    return sorted().filter(e => e.bf != null && e.weight != null).map(e => {
+      const fat = e.weight * e.bf / 100;
+      return { date: e.date, week: daysFrom(e.date) / 7, weight: e.weight, bf: e.bf, fat, lean: e.weight - fat, muscle: e.muscle ?? null, bone: e.bone ?? null };
+    });
+  }
+  function compStats() {
+    const c = compSeries();
+    if (c.length < 2) return null;
+    const a = c[0], b = c[c.length - 1];
+    const dW = a.weight - b.weight, dF = a.fat - b.fat, dL = a.lean - b.lean;
+    return { first: a, last: b, dW, dF, dL, fatFrac: dW > 0.3 ? dF / dW * 100 : null };
+  }
+
+  function targetsFor(w) {
+    const a = af(weeksIn()), tdee = bmr(w) * a;
+    const kcal = Math.max(Math.round((tdee - 500) / 10) * 10, Math.round(bmr(w) * 1.15 / 10) * 10);
+    const c = compSeries();
+    // protein from measured lean mass when we have it, otherwise adjusted body weight
+    const protein = c.length
+      ? Math.round(c[c.length - 1].lean * 2.0 / 5) * 5
+      : Math.round((72.9 + 0.4 * Math.max(0, w - 72.9)) * 1.75 / 5) * 5;
+    const fat = Math.round(w * 0.67 / 5) * 5;
+    const carb = Math.round((kcal - protein * 4 - fat * 9) / 4 / 5) * 5;
+    return { tdee: Math.round(tdee), kcal, protein, fat, carb, fromLean: c.length > 0 };
+  }
+
+  const ptsOf = k => sorted().filter(e => e[k] != null).map(e => ({ date: e.date, week: daysFrom(e.date) / 7, v: e[k] }));
+  const avgLast = (k, n) => { const s = sorted().filter(e => e[k] != null).slice(-n); return s.length ? s.reduce((a, x) => a + x[k], 0) / s.length : null; };
+  const sumLast = (k, n) => { const s = sorted().slice(-n).filter(e => e[k] != null); return s.length ? s.reduce((a, x) => a + x[k], 0) : null; };
+  function weeklySeries(k, mean) {
+    const by = {};
+    sorted().forEach(e => { if (e[k] != null) { const w = weekOf(e.date); (by[w] ??= []).push(e[k]); } });
+    return Object.keys(by).map(Number).sort((a, b) => a - b)
+      .map(w => ({ week: w, v: mean ? by[w].reduce((a, x) => a + x, 0) / by[w].length : by[w].reduce((a, x) => a + x, 0) }));
+  }
+
+  /* ================= svg engine ================= */
+  const NS = "http://www.w3.org/2000/svg";
+  const el = (n, a = {}) => { const x = document.createElementNS(NS, n); for (const k in a) x.setAttribute(k, a[k]); return x; };
+  const tip = document.getElementById("tip");
+  function showTip(evt, title, rows) {
+    tip.innerHTML = `<div class="th">${title}</div>` + rows.map(r => `<div class="tr"><span>${r[0]}</span><b>${r[1]}</b></div>`).join("");
+    tip.style.opacity = 1;
+    const r = tip.getBoundingClientRect();
+    let x = evt.clientX + 14, y = evt.clientY - 12;
+    if (x + r.width > innerWidth - 8) x = evt.clientX - r.width - 14;
+    if (x < 8) x = 8;
+    if (y + r.height > innerHeight - 78) y = evt.clientY - r.height - 16;
+    tip.style.left = x + "px"; tip.style.top = Math.max(8, y) + "px";
+  }
+  const hideTip = () => tip.style.opacity = 0;
+
+  function frame(svg, hh) {
+    const W = Math.max(280, Math.round(svg.clientWidth || svg.parentElement.clientWidth - 30));
+    svg.setAttribute("viewBox", `0 0 ${W} ${hh}`);
+    svg.setAttribute("height", hh);
+    svg.innerHTML = "";
+    return W;
+  }
+  function empty(svg, W, hh, msg) {
+    const t = el("text", { x: W / 2, y: hh / 2, class: "tick", "text-anchor": "middle" });
+    t.textContent = msg; svg.appendChild(t);
+  }
+  function axes(svg, W, hh, M, xs, ys, xt, yt, yLab) {
+    yt.forEach(v => {
+      svg.appendChild(el("line", { x1: M.l, x2: W - M.r, y1: ys(v), y2: ys(v), class: "gridline" }));
+      const t = el("text", { x: M.l - 6, y: ys(v) + 3.5, class: "tick", "text-anchor": "end" }); t.textContent = v; svg.appendChild(t);
+    });
+    svg.appendChild(el("line", { x1: M.l, x2: W - M.r, y1: hh - M.b, y2: hh - M.b, class: "axisline" }));
+    xt.forEach(v => { const t = el("text", { x: xs(v.x), y: hh - M.b + 15, class: "tick", "text-anchor": "middle" }); t.textContent = v.l; svg.appendChild(t); });
+    if (yLab) { const t = el("text", { x: 1, y: M.t - 7, class: "tick" }); t.textContent = yLab; svg.appendChild(t); }
+  }
+  const path = p => p.map((q, i) => (i ? "L" : "M") + q[0].toFixed(1) + " " + q[1].toFixed(1)).join(" ");
+  const xticks = (maxWk) => { const o = []; const step = maxWk > 40 ? 3 : (maxWk > 16 ? 2 : 1); for (let m = 0; m <= Math.floor(maxWk / 4.33); m += step) o.push({ x: m * 4.33, l: "M" + m }); return o; };
+
+  /* -------- weight chart -------- */
+  function drawWeight() {
+    const svg = document.getElementById("weightChart"), hh = 300;
+    const W = frame(svg, hh), M = { t: 20, r: 44, b: 26, l: 32 };
+    const roll = rollingAvg();
+    const maxWk = Math.max(56, Math.ceil((roll.length ? roll[roll.length - 1].week : 0) + 8));
+    const xs = w => M.l + (w / maxWk) * (W - M.l - M.r);
+    const lo = 74, hi = 107, ys = v => M.t + (1 - (v - lo) / (hi - lo)) * (hh - M.t - M.b);
+    axes(svg, W, hh, M, xs, ys, xticks(maxWk), [75, 80, 85, 90, 95, 100, 105], "kg");
+    [[95.0, "BMI 30", "var(--warning)"], [85.5, "BMI 27", "var(--good)"]].forEach(([v, lab, col]) => {
+      svg.appendChild(el("line", { x1: M.l, x2: W - M.r, y1: ys(v), y2: ys(v), stroke: col, "stroke-width": 1, "stroke-dasharray": "2 4", opacity: .85 }));
+      const t = el("text", { x: W - M.r + 4, y: ys(v) + 3.5, class: "tick" }); t.textContent = lab; svg.appendChild(t);
+    });
+    [[projTyp, .34], [projGood, .7]].forEach(([p, op]) => {
+      svg.appendChild(el("path", { d: path(p.filter(d => d.week <= maxWk).map(d => [xs(d.week), ys(d.w)])), fill: "none", stroke: "var(--proj)", "stroke-width": 2, "stroke-dasharray": "5 5", opacity: op, "stroke-linecap": "round" }));
+    });
+    [[projGood, "good"], [projTyp, "typical"]].forEach(([p, l]) => {
+      const d = p[Math.min(maxWk, 78)];
+      const t = el("text", { x: xs(d.week) + 4, y: ys(d.w) + 3.5, class: "tick" }); t.textContent = l; svg.appendChild(t);
+    });
+    if (!roll.length) { empty(svg, W, hh, "No weight entries yet"); return; }
+    roll.forEach(d => svg.appendChild(el("circle", { cx: xs(d.week), cy: ys(d.raw), r: 2.3, fill: "var(--series-1)", opacity: .32 })));
+    svg.appendChild(el("path", { d: path(roll.map(d => [xs(d.week), ys(d.avg)])), fill: "none", stroke: "var(--series-1)", "stroke-width": 2.2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    const last = roll[roll.length - 1];
+    svg.appendChild(el("circle", { cx: xs(last.week), cy: ys(last.avg), r: 4.5, fill: "var(--series-1)", stroke: "var(--surface-1)", "stroke-width": 2 }));
+    const lt = el("text", { x: xs(last.week) + 8, y: ys(last.avg) - 7, class: "dlabel" }); lt.textContent = fmt(last.avg) + " kg"; svg.appendChild(lt);
+
+    const cross = el("line", { y1: M.t, y2: hh - M.b, stroke: "var(--axis)", "stroke-width": 1, opacity: 0 });
+    svg.appendChild(cross);
+    const hit = el("rect", { x: M.l, y: M.t, width: W - M.l - M.r, height: hh - M.t - M.b, fill: "transparent" });
+    svg.appendChild(hit);
+    const move = e => {
+      const p = e.touches ? e.touches[0] : e, bb = svg.getBoundingClientRect();
+      const wk = ((p.clientX - bb.left) / bb.width * W - M.l) / (W - M.l - M.r) * maxWk;
+      let best = roll[0]; roll.forEach(d => { if (Math.abs(d.week - wk) < Math.abs(best.week - wk)) best = d; });
+      cross.setAttribute("x1", xs(best.week)); cross.setAttribute("x2", xs(best.week)); cross.setAttribute("opacity", .6);
+      const g = projGood[Math.min(78, Math.round(best.week))], t = projTyp[Math.min(78, Math.round(best.week))];
+      showTip(p, best.date, [["7-day avg", fmt(best.avg) + " kg"], ["That day", fmt(best.raw) + " kg"], ["BMI", fmt(bmiOf(best.avg))], ["Lost", fmt(W0 - best.avg) + " kg"], ["Proj. good", fmt(g.w)], ["Proj. typical", fmt(t.w)]]);
+    };
+    hit.addEventListener("mousemove", move);
+    hit.addEventListener("touchmove", e => { e.preventDefault(); move(e); }, { passive: false });
+    hit.addEventListener("touchstart", move, { passive: true });
+    ["mouseleave", "touchend"].forEach(ev => hit.addEventListener(ev, () => { hideTip(); cross.setAttribute("opacity", 0); }));
+  }
+
+  /* -------- composition chart -------- */
+  function drawComp() {
+    const svg = document.getElementById("compChart"), hh = 250;
+    const W = frame(svg, hh), M = { t: 20, r: 16, b: 26, l: 32 };
+    const c = compSeries();
+    const note = document.getElementById("compNote");
+    if (!c.length) { empty(svg, W, hh, "No body fat readings yet"); note.textContent = "Add a body fat % reading from your scale to populate this."; return; }
+    // Plotted as CHANGE FROM BASELINE so both series share one honest scale —
+    // fat (~32 kg) and lean (~69 kg) on a common absolute axis would hide the change in both.
+    const base = c[0];
+    const d0 = c.map(d => ({ ...d, dFat: d.fat - base.fat, dLean: d.lean - base.lean }));
+    const maxWk = Math.max(12, Math.ceil(c[c.length - 1].week + 2));
+    const span = Math.max(2, Math.ceil(Math.max(...d0.flatMap(d => [Math.abs(d.dFat), Math.abs(d.dLean)])) + 0.8));
+    const lo = -span, hi = Math.max(1, span * 0.4);
+    const xs = w => M.l + (w / maxWk) * (W - M.l - M.r), ys = v => M.t + (1 - (v - lo) / (hi - lo)) * (hh - M.t - M.b);
+    const stepY = span <= 3 ? 1 : span <= 7 ? 2 : 5;
+    const yt = []; for (let v = Math.ceil(lo / stepY) * stepY; v <= hi; v += stepY) yt.push(v);
+    axes(svg, W, hh, M, xs, ys, xticks(maxWk), yt, "kg change");
+    // emphasised zero line — "no change" is the reference for lean mass
+    svg.appendChild(el("line", { x1: M.l, x2: W - M.r, y1: ys(0), y2: ys(0), stroke: "var(--axis)", "stroke-width": 1.5 }));
+    [["dLean", "var(--series-3)", "Lean"], ["dFat", "var(--series-2)", "Fat"]].forEach(([k, col, nm]) => {
+      if (d0.length > 1) svg.appendChild(el("path", { d: path(d0.map(d => [xs(d.week), ys(d[k])])), fill: "none", stroke: col, "stroke-width": 2.2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+      d0.forEach(d => svg.appendChild(el("circle", { cx: xs(d.week), cy: ys(d[k]), r: 4, fill: col, stroke: "var(--surface-1)", "stroke-width": 2 })));
+      const lp = d0[d0.length - 1];
+      const t = el("text", { x: xs(lp.week) - 5, y: ys(lp[k]) + (k === "dFat" ? 16 : -10), class: "dlabel", "text-anchor": "end" });
+      t.textContent = `${nm} ${lp[k] >= 0 ? "+" : "−"}${fmt(Math.abs(lp[k]))} kg`; svg.appendChild(t);
+    });
+    const hit = el("rect", { x: M.l, y: M.t, width: W - M.l - M.r, height: hh - M.t - M.b, fill: "transparent" }); svg.appendChild(hit);
+    const move = e => {
+      const p = e.touches ? e.touches[0] : e, bb = svg.getBoundingClientRect();
+      const wk = ((p.clientX - bb.left) / bb.width * W - M.l) / (W - M.l - M.r) * maxWk;
+      let best = d0[0]; d0.forEach(d => { if (Math.abs(d.week - wk) < Math.abs(best.week - wk)) best = d; });
+      showTip(p, best.date, [
+        ["Fat change", (best.dFat >= 0 ? "+" : "−") + fmt(Math.abs(best.dFat)) + " kg"],
+        ["Lean change", (best.dLean >= 0 ? "+" : "−") + fmt(Math.abs(best.dLean)) + " kg"],
+        ["Fat mass", fmt(best.fat) + " kg"], ["Lean mass", fmt(best.lean) + " kg"],
+        ["Body fat", fmt(best.bf) + " %"], ["Weight", fmt(best.weight) + " kg"]
+      ]);
+    };
+    hit.addEventListener("mousemove", move);
+    hit.addEventListener("touchmove", e => { e.preventDefault(); move(e); }, { passive: false });
+    ["mouseleave", "touchend"].forEach(ev => hit.addEventListener(ev, hideTip));
+
+    const st = compStats();
+    if (st && st.fatFrac != null) {
+      note.innerHTML = `Since your first reading you've lost <b>${fmt(st.dW)} kg</b> total — <b>${fmt(st.dF)} kg of fat</b> and ${st.dL >= 0 ? fmt(st.dL) + " kg" : "<b>gained " + fmt(-st.dL) + " kg</b>"} of lean tissue. ` +
+        (st.fatFrac >= 80 ? `That's <b>${fmt(st.fatFrac, 0)}% of the loss coming from fat</b> — excellent.`
+          : st.fatFrac >= 65 ? `That's <b>${fmt(st.fatFrac, 0)}% from fat</b> — acceptable, but push protein and training toward 80%+.`
+            : `Only <b>${fmt(st.fatFrac, 0)}% came from fat</b>. Too much lean tissue is going. Raise protein, add a resistance session, and slow the deficit.`);
+    } else {
+      note.textContent = "Two body fat readings a few weeks apart will unlock the fat-vs-lean breakdown.";
+    }
+  }
+
+  /* -------- small line chart -------- */
+  function smallLine(id, series, o) {
+    const svg = document.getElementById(id), hh = o.h || 230;
+    const W = frame(svg, hh), M = { t: 20, r: 14, b: 26, l: 32 };
+    const all = series.flatMap(s => s.pts);
+    if (!all.length) { empty(svg, W, hh, "No data yet"); return; }
+    const maxWk = Math.max(12, Math.ceil(Math.max(...all.map(p => p.week)) + 2));
+    const xs = w => M.l + (w / maxWk) * (W - M.l - M.r), ys = v => M.t + (1 - (v - o.lo) / (o.hi - o.lo)) * (hh - M.t - M.b);
+    axes(svg, W, hh, M, xs, ys, xticks(maxWk), o.yt, o.yLab);
+    (o.refs || []).forEach(([v, lab, col]) => {
+      svg.appendChild(el("line", { x1: M.l, x2: W - M.r, y1: ys(v), y2: ys(v), stroke: col, "stroke-width": 1, "stroke-dasharray": "2 4", opacity: .85 }));
+      const t = el("text", { x: W - M.r, y: ys(v) - 4, class: "tick", "text-anchor": "end" }); t.textContent = lab; svg.appendChild(t);
+    });
+    series.forEach(s => {
+      if (s.pts.length > 1) svg.appendChild(el("path", { d: path(s.pts.map(p => [xs(p.week), ys(p.v)])), fill: "none", stroke: s.color, "stroke-width": 2.2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+      s.pts.forEach(p => svg.appendChild(el("circle", { cx: xs(p.week), cy: ys(p.v), r: 4, fill: s.color, stroke: "var(--surface-1)", "stroke-width": 2 })));
+      const lp = s.pts[s.pts.length - 1];
+      const t = el("text", { x: xs(lp.week) - 4, y: ys(lp.v) - 10, class: "dlabel", "text-anchor": "end" }); t.textContent = fmt(lp.v, o.dec ?? 0) + (o.unit || ""); svg.appendChild(t);
+    });
+    const hit = el("rect", { x: M.l, y: M.t, width: W - M.l - M.r, height: hh - M.t - M.b, fill: "transparent" }); svg.appendChild(hit);
+    const move = e => {
+      const p = e.touches ? e.touches[0] : e, bb = svg.getBoundingClientRect();
+      const wk = ((p.clientX - bb.left) / bb.width * W - M.l) / (W - M.l - M.r) * maxWk;
+      let best = null, bd = 1e9;
+      series[0].pts.forEach(q => { if (Math.abs(q.week - wk) < bd) { bd = Math.abs(q.week - wk); best = q; } });
+      if (!best) return;
+      showTip(p, best.date, series.map(s => { const m = s.pts.find(q => q.date === best.date); return [s.name, m ? fmt(m.v, o.dec ?? 0) + (o.unit || "") : "—"]; }));
+    };
+    hit.addEventListener("mousemove", move);
+    hit.addEventListener("touchmove", e => { e.preventDefault(); move(e); }, { passive: false });
+    ["mouseleave", "touchend"].forEach(ev => hit.addEventListener(ev, hideTip));
+  }
+
+  /* -------- weekly bars -------- */
+  function bars(id, values, o) {
+    const svg = document.getElementById(id), hh = 210;
+    const W = frame(svg, hh), M = { t: 20, r: 12, b: 26, l: 28 };
+    if (!values.length) { empty(svg, W, hh, "No data yet"); return; }
+    const n = Math.max(8, values.length), ys = v => M.t + (1 - v / o.hi) * (hh - M.t - M.b), bw = (W - M.l - M.r) / n;
+    o.yt.forEach(v => {
+      svg.appendChild(el("line", { x1: M.l, x2: W - M.r, y1: ys(v), y2: ys(v), class: "gridline" }));
+      const t = el("text", { x: M.l - 6, y: ys(v) + 3.5, class: "tick", "text-anchor": "end" }); t.textContent = v; svg.appendChild(t);
+    });
+    svg.appendChild(el("line", { x1: M.l, x2: W - M.r, y1: hh - M.b, y2: hh - M.b, class: "axisline" }));
+    values.forEach((d, i) => {
+      const x = M.l + i * bw + 2, w = Math.max(3, bw - 4), y = ys(Math.min(d.v, o.hi)), h = Math.max(2, (hh - M.b) - y);
+      const met = o.target != null && d.v >= o.target;
+      const r = el("rect", { x, y, width: w, height: h, rx: 4, fill: o.color, opacity: met ? .95 : .42 });
+      svg.appendChild(r);
+      if (met) { const c = el("text", { x: x + w / 2, y: y - 5, class: "tick", fill: "var(--success-text)", "text-anchor": "middle" }); c.textContent = "✓"; svg.appendChild(c); }
+      const show = e => showTip(e.touches ? e.touches[0] : e, "Week " + d.week, [[o.name, fmt(d.v, o.dec ?? 0) + (o.unit || "")]]);
+      r.addEventListener("mousemove", show); r.addEventListener("touchstart", show, { passive: true });
+      ["mouseleave", "touchend"].forEach(ev => r.addEventListener(ev, hideTip));
+      if (i % Math.ceil(n / 7) === 0) { const t = el("text", { x: x + w / 2, y: hh - M.b + 15, class: "tick", "text-anchor": "middle" }); t.textContent = "W" + d.week; svg.appendChild(t); }
+    });
+    if (o.target != null) {
+      svg.appendChild(el("line", { x1: M.l, x2: W - M.r, y1: ys(o.target), y2: ys(o.target), stroke: "var(--good)", "stroke-width": 1.5, "stroke-dasharray": "4 3" }));
+      const lab = "target " + o.target + (o.unit || "");
+      svg.appendChild(el("rect", { x: M.l + 2, y: ys(o.target) - 14, width: lab.length * 5.4 + 8, height: 13, rx: 3, fill: "var(--surface-1)", opacity: .92 }));
+      const t = el("text", { x: M.l + 6, y: ys(o.target) - 4.5, class: "tick", fill: "var(--success-text)" }); t.textContent = lab; svg.appendChild(t);
+    }
+  }
+
+  /* ================= render ================= */
+  function render() {
+    const w = latestW(), lost = W0 - w, lostPct = lost / W0 * 100;
+    const t = targetsFor(w), c = compSeries(), st = compStats();
+    const waistE = lastOf("waist"), bpE = lastOf("sys");
+
+    document.getElementById("hdrSub").textContent = `52 y · 178 cm · start 105 kg · week ${weeksIn()}`;
+    document.getElementById("heroW").innerHTML = fmt(w) + "<small>kg</small>";
+    document.getElementById("heroD").innerHTML = lost >= .05
+      ? `<span class="up">−${fmt(lost)} kg</span> · ${fmt(lostPct)}% · BMI ${fmt(bmiOf(w))}`
+      : (lost <= -.05 ? `<span class="down">+${fmt(-lost)} kg</span> · BMI ${fmt(bmiOf(w))}` : `baseline · BMI ${fmt(bmiOf(w))}`);
+
+    const lastC = c.length ? c[c.length - 1] : null;
+    document.getElementById("tiles").innerHTML = [
+      ["Body fat", lastC ? fmt(lastC.bf) + "<small>%</small>" : "—", lastC ? fmt(lastC.fat) + " kg fat mass" : "Add a scale reading"],
+      ["Lean mass", lastC ? fmt(lastC.lean) + "<small> kg</small>" : "—",
+        st ? (st.dL >= -0.2 ? '<span class="up">holding</span>' : `<span class="down">−${fmt(-st.dL)} kg</span> since start`) : "The asset to protect"],
+      ["Fat share of loss", st && st.fatFrac != null ? fmt(st.fatFrac, 0) + "<small>%</small>" : "—",
+        st && st.fatFrac != null ? (st.fatFrac >= 80 ? '<span class="up">excellent</span>' : st.fatFrac >= 65 ? "acceptable — aim 80%+" : '<span class="down">too much lean loss</span>') : "Target 80%+"],
+      ["Waist", waistE ? fmt(waistE.waist, 0) + "<small> cm</small>" : "—",
+        waistE ? (waistE.waist >= 102 ? '<span class="down">high risk</span>' : waistE.waist >= 94 ? "elevated" : '<span class="up">below 94 cm</span>') : "Measure weekly"],
+      ["Blood pressure", bpE ? `${bpE.sys}<small>/${bpE.dia}</small>` : "—",
+        bpE ? (bpE.sys >= 140 || bpE.dia >= 90 ? '<span class="down">stage 2</span>' : bpE.sys >= 130 || bpE.dia >= 80 ? "stage 1" : '<span class="up">at target</span>') : "3× a week"],
+      ["Muscle mass", lastC && lastC.muscle != null ? fmt(lastC.muscle) + "<small> kg</small>" : "—", "scale estimate"],
+      ["Bone mass", lastC && lastC.bone != null ? fmt(lastC.bone) + "<small> kg</small>" : "—", "barely moves — reference only"],
+      ["Calories today", t.kcal + "", `protein ${t.protein} g`]
+    ].map(([l, v, d]) => `<div class="tile"><div class="lbl">${l}</div><div class="val">${v}</div><div class="delta">${d}</div></div>`).join("");
+
+    /* adaptive flags */
+    const flags = [], roll = rollingAvg();
+    if (roll.length >= 14) {
+      const r = roll.slice(-14);
+      const rate = (r[0].avg - r[r.length - 1].avg) / ((r[r.length - 1].week - r[0].week) || 1);
+      const wt = weeklySeries("train");
+      const avgTrain = wt.length ? wt.slice(-3).reduce((a, x) => a + x.v, 0) / Math.min(3, wt.length) : 0;
+      if (st && st.fatFrac != null && st.fatFrac < 65 && st.dW > 2)
+        flags.push(["crit", `<b>Only ${fmt(st.fatFrac, 0)}% of your loss is fat.</b> ${fmt(st.dL)} kg of lean tissue has gone. Raise protein to ${t.protein} g, get to 3 resistance sessions a week, and cut the deficit by ~200 kcal until the ratio recovers.`]);
+      else if (rate > 1.1 && avgTrain < 3)
+        flags.push(["crit", `<b>Lean mass risk.</b> Losing ${fmt(rate)} kg/week on ${fmt(avgTrain, 1)} sessions/week. At 52 this pattern predicts real muscle loss — raise intake ~200 kcal and add a session.`]);
+      else if (rate > 1.1)
+        flags.push(["warn", `<b>Losing fast</b> (${fmt(rate)} kg/week). Above ~1% of body weight a week, lean mass retention drops. Consider +200 kcal.`]);
+      else if (rate < 0.05 && roll.length >= 21)
+        flags.push(["warn", `<b>Possible plateau.</b> Check in order: logging accuracy, then recalculate maintenance for your new weight, then add activity. Don't cut calories first.`]);
+      else if (rate >= 0.3)
+        flags.push(["ok", `<b>On track</b> at ${fmt(rate)} kg/week — inside the 0.5–1%/week band that best preserves muscle.`]);
+    }
+    const sl = avgLast("sleep", 7);
+    if (sl != null && sl < 6.75) flags.push(["warn", `<b>Sleep averaging ${fmt(sl)} h.</b> Below 7 h, roughly half your loss shifts from fat to lean tissue at the same intake. Cheapest fix available.`]);
+    const pr = avgLast("protein", 7);
+    if (pr != null && pr < t.protein * .88) flags.push(["warn", `<b>Protein averaging ${fmt(pr, 0)} g</b> against a ${t.protein} g target — the most commonly missed and most consequential number in the plan.`]);
+    const al = sumLast("alc", 7);
+    if (al != null && al > 4) flags.push(["warn", `<b>${fmt(al, 1)} drinks in the last 7 days</b> — roughly ${Math.round(al * 130)} kcal, plus suppressed fat oxidation and degraded sleep.`]);
+    if (bpE && bpE.sys < 118 && lost > 4) flags.push(["warn", `<b>Systolic ${bpE.sys} mmHg after ${fmt(lost)} kg lost.</b> If you take blood pressure medication, ask your doctor about a dose review — over-medication is a predictable consequence of losing weight.`]);
+    document.getElementById("flags").innerHTML = flags.map(([k, m]) => `<div class="flag ${k}">${m}</div>`).join("");
+
+    /* charts */
+    drawWeight(); drawComp();
+    smallLine("waistChart", [{ name: "Waist", color: "var(--series-1)", pts: ptsOf("waist") }],
+      { lo: 84, hi: 122, yt: [85, 95, 105, 115], yLab: "cm", unit: " cm", dec: 0, refs: [[102, "102 — high risk", "var(--critical)"], [94, "94 — target", "var(--good)"]] });
+    smallLine("bpChart", [
+      { name: "Systolic", color: "var(--series-2)", pts: ptsOf("sys") },
+      { name: "Diastolic", color: "var(--series-3)", pts: ptsOf("dia") }
+    ], { lo: 60, hi: 165, yt: [70, 90, 110, 130, 150], yLab: "mmHg", dec: 0, refs: [[130, "130 systolic", "var(--warning)"]] });
+    bars("trainChart", weeklySeries("train"), { name: "Sessions", color: "var(--series-1)", hi: 5, yt: [1, 2, 3, 4, 5], target: 3 });
+    bars("sleepChart", weeklySeries("sleep", true), { name: "Avg sleep", color: "var(--series-1)", hi: 10, yt: [2, 4, 6, 8, 10], target: 7, unit: " h", dec: 1 });
+
+    /* milestones */
+    document.getElementById("milestones").innerHTML = [
+      ["5% loss", "99.7 kg — clinically meaningful", 99.75],
+      ["BMI under 30", "95.0 kg — no longer obese", 95.0],
+      ["10% loss", "94.5 kg — the Look AHEAD benchmark", 94.5],
+      ["15% loss", "89.3 kg", 89.25],
+      ["BMI under 27", "85.5 kg — low-risk range", 85.5],
+      ["BMI under 25", "79.2 kg — healthy range", 79.2]
+    ].map(([n, s, tg]) => {
+      const pct = Math.min(100, Math.max(0, (W0 - w) / (W0 - tg) * 100)), done = w <= tg;
+      return `<div class="ms ${done ? "done" : ""}"><div class="name">${n}<em>${s}</em></div><div class="bar"><i style="width:${pct.toFixed(1)}%"></i></div><div class="pct">${done ? "done" : fmt(w - tg) + " kg"}</div></div>`;
+    }).join("");
+
+    /* targets */
+    document.getElementById("targets").innerHTML = [
+      ["Calories", t.kcal + " kcal", `maintenance ≈ ${t.tdee}`],
+      ["Protein", t.protein + " g", t.fromLean ? "from measured lean mass" : "≈4 meals of " + Math.round(t.protein / 4) + " g"],
+      ["Fat", t.fat + " g", "olive oil, fish, nuts"],
+      ["Carbohydrate", t.carb + " g", "whole grains, legumes"],
+      ["Fibre", "35–40 g", "satiety + LDL"],
+      ["Sodium", "<2,300 mg", "target 1,500 mg"],
+      ["Resistance", "3 ×/week", "full body, joint-sparing"],
+      ["Steps", "8,000–10,000", "low-impact only"],
+      ["Sleep", "7–8 h", "fixed wake time"],
+      ["Alcohol", "0 drinks", "hard cap 3–4/week"],
+      ["Zone 2 cardio", "3 × 30–45 min", "103–120 bpm"],
+      ["Waist target", "<94 cm", "more useful than the scale"]
+    ].map(([a, b, cc]) => `<div><div class="t">${a}</div><div class="v">${b}</div><div class="n">${cc}</div></div>`).join("");
+    const nx = Math.floor((W0 - w) / 5) * 5 + 5;
+    document.getElementById("recalcNote").innerHTML = `Next recalculation at <b>${fmt(W0 - nx)} kg</b> (${fmt(w - (W0 - nx))} kg away). Calories fall as you get lighter, but rising activity offsets much of it — build the activity so you can eat more, not less.`;
+
+    /* table */
+    const rm = Object.fromEntries(rollingAvg().map(r => [r.date, r.avg]));
+    const cm = Object.fromEntries(compSeries().map(x => [x.date, x]));
+    const all = sorted().reverse(), rows = showAll ? all : all.slice(0, 20);
+    document.getElementById("tableCap").textContent = all.length
+      ? (showAll ? `All ${all.length} entries, newest first.` : `Most recent ${Math.min(20, all.length)} of ${all.length}, newest first.`)
+      : "No entries yet.";
+    const mb = document.getElementById("moreBtn");
+    mb.classList.toggle("hide", all.length <= 20);
+    mb.textContent = showAll ? "Show recent only" : `Show all ${all.length}`;
+    document.getElementById("tbody").innerHTML = rows.map(e => `<tr>
+      <td class="k">${e.date.slice(5)}</td><td>${weekOf(e.date)}</td>
+      <td class="k">${e.weight != null ? fmt(e.weight) : "—"}</td>
+      <td>${rm[e.date] != null ? fmt(rm[e.date]) : "—"}</td>
+      <td>${e.bf != null ? fmt(e.bf) : "—"}</td>
+      <td>${cm[e.date] ? fmt(cm[e.date].fat) : "—"}</td>
+      <td>${cm[e.date] ? fmt(cm[e.date].lean) : "—"}</td>
+      <td>${e.waist != null ? fmt(e.waist, 0) : "—"}</td>
+      <td>${e.sys != null ? e.sys + "/" + (e.dia ?? "—") : "—"}</td>
+      <td>${e.sleep != null ? fmt(e.sleep) : "—"}</td>
+      <td>${e.steps != null ? e.steps.toLocaleString() : "—"}</td>
+      <td>${e.protein ?? "—"}</td><td>${e.kcal ?? "—"}</td>
+      <td>${e.train ? "✓" : "—"}</td><td>${e.alc != null ? fmt(e.alc, 1) : "—"}</td>
+      <td><button data-del="${e.date}" style="padding:3px 9px;font-size:13px">×</button></td></tr>`).join("");
+    document.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => {
+      entries = entries.filter(x => x.date !== b.dataset.del); save(); render();
+    }));
+
+    document.getElementById("storeNote").textContent = storageOK
+      ? "Saved automatically on this device. Clearing your browser data or deleting the app will erase it — keep an exported copy."
+      : "⚠ This browser is blocking local storage (private mode?). Data will be lost when you close the page — export before you do.";
+  }
+
+  /* ================= form ================= */
+  const todayStr = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+  document.getElementById("f_date").value = todayStr();
+  document.getElementById("logForm").addEventListener("submit", ev => {
+    ev.preventDefault();
+    const g = id => { const v = document.getElementById(id).value; return v === "" ? null : Number(v); };
+    const date = document.getElementById("f_date").value; if (!date) return;
+    const prev = entries.find(x => x.date === date) || {};
+    const e = { date };
+    const map = { weight: "f_weight", waist: "f_waist", sys: "f_sys", dia: "f_dia", sleep: "f_sleep", steps: "f_steps", protein: "f_protein", kcal: "f_kcal", alc: "f_alc", bf: "f_bf", muscle: "f_muscle", bone: "f_bone", water: "f_water" };
+    for (const k in map) { const v = g(map[k]); e[k] = v != null ? v : (prev[k] ?? null); }
+    e.train = g("f_train") || prev.train || 0;
+    entries = entries.filter(x => x.date !== date).concat(e);
+    save();
+    Object.values(map).forEach(i => document.getElementById(i).value = "");
+    document.getElementById("f_train").value = "0";
+    const n = document.getElementById("savedNote");
+    n.innerHTML = '<span class="saved">✓ Saved.</span> Tomorrow\'s date is loaded.';
+    setTimeout(() => n.textContent = "", 4000);
+    const d = parseD(date); d.setDate(d.getDate() + 1);
+    document.getElementById("f_date").value = d.toISOString().slice(0, 10);
+    render(); window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  /* ================= backup ================= */
+  const dl = (blob, name) => { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
+  document.getElementById("exportBtn").addEventListener("click", () =>
+    dl(new Blob([JSON.stringify({ v: 1, profile: { start: START, w0: W0, height: HCM, age: AGE }, entries }, null, 2)], { type: "application/json" }), "weight-" + todayStr() + ".json"));
+  document.getElementById("csvBtn").addEventListener("click", () => {
+    const cm = Object.fromEntries(compSeries().map(x => [x.date, x]));
+    const cols = ["date", "week", "weight", "bf", "fatMass", "leanMass", "muscle", "bone", "water", "waist", "sys", "dia", "sleep", "steps", "protein", "kcal", "train", "alc"];
+    const rows = sorted().map(e => cols.map(c =>
+      c === "week" ? weekOf(e.date) :
+        c === "fatMass" ? (cm[e.date] ? cm[e.date].fat.toFixed(2) : "") :
+          c === "leanMass" ? (cm[e.date] ? cm[e.date].lean.toFixed(2) : "") :
+            (e[c] ?? "")).join(","));
+    dl(new Blob([cols.join(",") + "\n" + rows.join("\n")], { type: "text/csv" }), "weight-" + todayStr() + ".csv");
+  });
+  document.getElementById("importBtn").addEventListener("click", () => document.getElementById("fileIn").click());
+  document.getElementById("fileIn").addEventListener("change", ev => {
+    const f = ev.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const d = JSON.parse(r.result);
+        if (!Array.isArray(d.entries)) throw 0;
+        const byDate = Object.fromEntries(entries.map(e => [e.date, e]));
+        d.entries.forEach(e => byDate[e.date] = { ...byDate[e.date], ...e });
+        entries = Object.values(byDate); save(); render();
+        alert("Imported " + d.entries.length + " entries.");
+      } catch (e) { alert("That doesn't look like a tracker export."); }
+    };
+    r.readAsText(f); ev.target.value = "";
+  });
+  document.getElementById("clearBtn").addEventListener("click", () => {
+    if (confirm("Delete all entries on this device? Export first if you want a copy.")) { entries = []; save(); render(); }
+  });
+  document.getElementById("demoBtn").addEventListener("click", () => {
+    if (entries.length && !confirm("This replaces your current data. Continue?")) return;
+    entries = [];
+    let w = W0, bf = 34.5;
+    const s = parseD(START);
+    for (let d = 0; d < 56; d++) {
+      const dt = new Date(s.getTime() + d * dayMs).toISOString().slice(0, 10), wk = Math.floor(d / 7);
+      w -= 0.068 + (Math.random() - .5) * .05;
+      const e = {
+        date: dt, weight: +(w + (Math.random() - .5) * 1.5).toFixed(1),
+        sleep: +(6.9 + Math.random() * 1.3).toFixed(2),
+        steps: Math.round(6200 + wk * 380 + Math.random() * 1800),
+        protein: Math.round(132 + Math.random() * 30), kcal: Math.round(2080 + Math.random() * 190),
+        train: (wk < 4 ? [1, 4] : [1, 3, 5]).includes(new Date(dt).getDay()) ? 1 : 0,
+        alc: d % 7 === 6 ? 2 : 0
+      };
+      if (d % 7 === 0) {
+        e.waist = +(113 - d * .115).toFixed(1);
+        e.sys = Math.round(148 - d * .16 + (Math.random() - .5) * 5);
+        e.dia = Math.round(94 - d * .10 + (Math.random() - .5) * 4);
+        bf -= 0.30; e.bf = +(bf + (Math.random() - .5) * .4).toFixed(1);
+        e.weight = +w.toFixed(1);
+        e.muscle = +((w * (1 - e.bf / 100)) * 0.94).toFixed(1);
+        e.bone = +(3.4 - d * 0.0005).toFixed(2);
+        e.water = +(46 + d * 0.03).toFixed(1);
+      }
+      entries.push(e);
+    }
+    save(); render(); go("trends");
+  });
+
+  /* ================= tabs ================= */
+  function go(name) {
+    document.querySelectorAll(".panel").forEach(p => p.classList.toggle("on", p.id === "p-" + name));
+    document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-current", String(b.dataset.tab === name)));
+    window.scrollTo({ top: 0 });
+    if (name === "trends") requestAnimationFrame(render);
+  }
+  document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => go(b.dataset.tab)));
+
+  /* ================= theme ================= */
+  const tb = document.getElementById("themeBtn");
+  tb.addEventListener("click", () => {
+    document.documentElement.dataset.theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    try { localStorage.setItem("wt.theme", document.documentElement.dataset.theme); } catch (e) { }
+    render();
+  });
+  try {
+    const saved = localStorage.getItem("wt.theme");
+    document.documentElement.dataset.theme = saved || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  } catch (e) { }
+
+  /* ================= install prompt ================= */
+  let deferred = null;
+  addEventListener("beforeinstallprompt", e => {
+    e.preventDefault(); deferred = e;
+    document.getElementById("installBanner").classList.remove("hide");
+  });
+  document.getElementById("installBtn").addEventListener("click", async () => {
+    if (!deferred) return;
+    deferred.prompt(); await deferred.userChoice; deferred = null;
+    document.getElementById("installBanner").classList.add("hide");
+  });
+  addEventListener("appinstalled", () => document.getElementById("installBanner").classList.add("hide"));
+
+  /* ================= resize ================= */
+  let rt;
+  addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 160); });
+  addEventListener("orientationchange", () => setTimeout(render, 260));
+
+  /* ================= service worker ================= */
+  if ("serviceWorker" in navigator) {
+    addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => { }));
+  }
+
+  load(); render();
+})();
+</script>
+</body>
+</html>
