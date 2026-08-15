@@ -362,6 +362,16 @@
     </div>
 
     <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+        <h2 style="margin:0" id="planTitle">Today's plan</h2>
+        <span style="font-size:11.5px;color:var(--muted)" id="planTot"></span>
+      </div>
+      <p class="cap">From the €100/week Dutch plan. Tap to log — every ingredient goes in separately, so you can adjust a portion afterwards.</p>
+      <div id="planRows"></div>
+      <div class="btnrow"><button class="pri wide" id="logDayBtn">Log the whole day</button></div>
+    </div>
+
+    <div class="card">
       <h2>Add food</h2>
       <p class="cap">Scan a packaged product, search the built-in library, or enter it by hand.</p>
       <div class="btnrow">
@@ -492,6 +502,17 @@
     </div>
 
     <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+        <h2 style="margin:0">Weekly shopping list</h2>
+        <span style="font-size:11.5px;color:var(--muted)" id="shopTot"></span>
+      </div>
+      <p class="cap">One Lidl run covers 90%. Tap to tick off — it remembers. Prices are estimates except ✓, which are verified.</p>
+      <div id="shopList"></div>
+      <div class="btnrow"><button id="shopReset">Reset the list</button></div>
+      <p class="note">Surplus on oats, rice, lentils, nuts and olive oil is intentional — they carry into next week, so week 2 costs roughly €12 less.</p>
+    </div>
+
+    <div class="card">
       <h2>Session A — full body</h2>
       <p class="cap">Alternate A and B, three times a week. Progress when you finish all sets at the top of the rep range with 2 reps left in the tank.</p>
       <table class="exl">
@@ -582,7 +603,7 @@
   const KEY = "wt.v2";
 
   /* ================= storage (graceful) ================= */
-  let entries = [], foods = {}, lib = {}, showAll = false, storageOK = true;
+  let entries = [], foods = {}, lib = {}, ticks = {}, showAll = false, storageOK = true;
   function load() {
     try {
       const raw = localStorage.getItem(KEY) || localStorage.getItem("wt.v1");  // migrate v1 → v2
@@ -591,11 +612,12 @@
         if (Array.isArray(d.entries)) entries = d.entries;
         if (d.foods && typeof d.foods === "object") foods = d.foods;
         if (d.lib && typeof d.lib === "object") lib = d.lib;
+        if (d.ticks && typeof d.ticks === "object") ticks = d.ticks;
       }
     } catch (e) { storageOK = false; }
   }
   function save() {
-    try { localStorage.setItem(KEY, JSON.stringify({ v: 2, saved: new Date().toISOString(), entries, foods, lib })); }
+    try { localStorage.setItem(KEY, JSON.stringify({ v: 2, saved: new Date().toISOString(), entries, foods, lib, ticks })); }
     catch (e) { storageOK = false; }
   }
 
@@ -1114,71 +1136,139 @@
     ["Kefir 1%", 40, 2.8, 1, 4, 0, "кефир 1%", "dairy"],
     ["Kefir 2.5%", 53, 2.9, 2.5, 4, 0, "кефир 2.5%", "dairy"],
     ["Ryazhenka 2.5%", 54, 2.9, 2.5, 4.2, 0, "ряженка", "dairy"],
-    ["Greek yoghurt 2%", 73, 10, 1.9, 3.6, 0, "греческий йогурт", "dairy"],
+    ["Greek yoghurt 2%", 73, 10, 1.9, 3.6, 0, "греческий йогурт griekse yoghurt", "dairy"],
     ["Smetana (sour cream) 15%", 160, 2.6, 15, 3, 0, "сметана 15%", "dairy"],
     ["Milk 2.5%", 52, 2.9, 2.5, 4.7, 0, "молоко 2.5%", "dairy"],
     ["Whey protein powder", 400, 80, 6, 8, 0, "протеин", "dairy", "scoop", 30],
-    ["Egg, whole", 143, 12.6, 9.5, 0.7, 0, "яйцо", "protein", "egg", 50],
+    ["Egg, whole", 143, 12.6, 9.5, 0.7, 0, "яйцо ei eieren", "protein", "egg", 50],
     ["Egg white", 52, 10.9, 0.2, 0.7, 0, "белок яйца", "protein"],
-    ["Chicken breast, raw", 120, 22.5, 2.6, 0, 0, "куриная грудка сырая", "protein"],
+    ["Chicken breast, raw", 120, 22.5, 2.6, 0, 0, "куриная грудка сырая kipfilet", "protein"],
     ["Chicken breast, cooked", 165, 31, 3.6, 0, 0, "куриная грудка готовая", "protein"],
     ["Turkey breast, raw", 104, 24, 1, 0, 0, "индейка грудка", "protein"],
     ["Beef, lean 5%, raw", 137, 21, 5, 0, 0, "говядина постная", "protein"],
     ["Pork loin, lean, raw", 143, 21, 6, 0, 0, "свинина корейка", "protein"],
     ["Cod, raw", 82, 18, 0.7, 0, 0, "треска", "protein"],
     ["Pollock, raw", 72, 15.9, 0.9, 0, 0, "минтай", "protein"],
-    ["Salmon, raw", 208, 20, 13, 0, 0, "лосось", "protein"],
+    ["Salmon, raw", 208, 20, 13, 0, 0, "лосось zalm", "protein"],
     ["Herring, raw", 158, 18, 9, 0, 0, "сельдь свежая", "protein"],
     ["Herring, salted", 217, 19, 15, 0, 0, "сельдь солёная", "salt"],
-    ["Mackerel, raw", 205, 19, 13.9, 0, 0, "скумбрия", "protein"],
-    ["Tuna, canned in water", 116, 26, 0.8, 0, 0, "тунец консерв.", "protein"],
+    ["Mackerel, raw", 205, 19, 13.9, 0, 0, "скумбрия makreel", "protein"],
+    ["Tuna, canned in water", 116, 26, 0.8, 0, 0, "тунец консерв. tonijn", "protein"],
     ["Salo (pork fatback)", 797, 2.9, 89, 0, 0, "сало", "limit"],
     ["Kolbasa (boiled sausage)", 301, 12, 28, 1.5, 0, "колбаса варёная", "limit"],
     ["Buckwheat (grechka), dry", 343, 13.3, 3.4, 62, 10, "гречка сухая", "grain"],
     ["Buckwheat (grechka), cooked", 110, 4.2, 1.1, 20, 2.7, "гречка варёная", "grain"],
-    ["Oats, dry", 389, 16.9, 6.9, 66, 10.6, "овсянка сухая", "grain"],
+    ["Oats, dry", 389, 16.9, 6.9, 66, 10.6, "овсянка сухая havermout", "grain"],
     ["Rice, white, cooked", 130, 2.7, 0.3, 28, 0.4, "рис варёный", "grain"],
     ["Barley, pearl, cooked", 123, 2.3, 0.4, 28, 3.8, "перловка", "grain"],
     ["Rye bread", 259, 8.5, 3.3, 48, 5.8, "ржаной хлеб", "grain", "slice", 30],
     ["White bread", 265, 9, 3.2, 49, 2.7, "белый хлеб", "limit", "slice", 30],
     ["Pasta, cooked", 158, 5.8, 0.9, 31, 1.8, "макароны варёные", "grain"],
-    ["Potato, raw", 77, 2, 0.1, 17, 2.2, "картофель", "grain"],
+    ["Potato, raw", 77, 2, 0.1, 17, 2.2, "картофель aardappel", "grain"],
     ["Pelmeni, cooked", 275, 12, 13, 27, 1.5, "пельмени", "limit"],
     ["Lentils, cooked", 116, 9, 0.4, 20, 7.9, "чечевица варёная", "legume"],
-    ["Chickpeas, cooked", 164, 8.9, 2.6, 27, 7.6, "нут варёный", "legume"],
-    ["Red beans, cooked", 127, 8.7, 0.5, 23, 6.4, "фасоль варёная", "legume"],
+    ["Chickpeas, cooked", 164, 8.9, 2.6, 27, 7.6, "нут варёный kikkererwten", "legume"],
+    ["Red beans, cooked", 127, 8.7, 0.5, 23, 6.4, "фасоль варёная kidneybonen", "legume"],
     ["Green peas", 81, 5.4, 0.4, 14, 5.7, "зелёный горошек", "legume"],
     ["Cabbage, raw", 25, 1.3, 0.1, 5.8, 2.5, "капуста", "veg"],
     ["Sauerkraut", 19, 0.9, 0.1, 4.3, 2.9, "квашеная капуста", "salt"],
     ["Beetroot, raw", 43, 1.6, 0.2, 9.6, 2.8, "свёкла", "veg"],
-    ["Carrot, raw", 41, 0.9, 0.2, 9.6, 2.8, "морковь", "veg"],
-    ["Cucumber", 15, 0.7, 0.1, 3.6, 0.5, "огурец", "veg"],
+    ["Carrot, raw", 41, 0.9, 0.2, 9.6, 2.8, "морковь wortel", "veg"],
+    ["Cucumber", 15, 0.7, 0.1, 3.6, 0.5, "огурец komkommer", "veg"],
     ["Pickled cucumber", 11, 0.5, 0.1, 2.3, 0.6, "солёный огурец", "salt"],
-    ["Tomato", 18, 0.9, 0.2, 3.9, 1.2, "помидор", "veg"],
-    ["Onion", 40, 1.1, 0.1, 9.3, 1.7, "лук", "veg"],
-    ["Bell pepper", 26, 1, 0.3, 6, 2.1, "болгарский перец", "veg"],
-    ["Courgette", 17, 1.2, 0.3, 3.1, 1, "кабачок", "veg"],
-    ["Olive oil", 884, 0, 100, 0, 0, "оливковое масло", "fat", "tbsp", 14],
+    ["Tomato", 18, 0.9, 0.2, 3.9, 1.2, "помидор tomaat", "veg"],
+    ["Onion", 40, 1.1, 0.1, 9.3, 1.7, "лук ui", "veg"],
+    ["Bell pepper", 26, 1, 0.3, 6, 2.1, "болгарский перец paprika", "veg"],
+    ["Courgette", 17, 1.2, 0.3, 3.1, 1, "кабачок courgette", "veg"],
+    ["Olive oil", 884, 0, 100, 0, 0, "оливковое масло olijfolie", "fat", "tbsp", 14],
     ["Sunflower oil", 884, 0, 100, 0, 0, "подсолнечное масло", "fat", "tbsp", 14],
     ["Butter", 717, 0.9, 81, 0.1, 0, "сливочное масло", "fat"],
     ["Mayonnaise", 680, 1, 75, 2.6, 0, "майонез", "limit", "tbsp", 14],
-    ["Walnuts", 654, 15.2, 65, 13.7, 6.7, "грецкий орех", "fat"],
-    ["Almonds", 579, 21.2, 49.9, 21.6, 12.5, "миндаль", "fat"],
+    ["Walnuts", 654, 15.2, 65, 13.7, 6.7, "грецкий орех walnoten", "fat"],
+    ["Almonds", 579, 21.2, 49.9, 21.6, 12.5, "миндаль amandelen", "fat"],
     ["Sunflower seeds", 584, 20.8, 51.5, 20, 8.6, "семечки", "fat"],
     ["Avocado", 160, 2, 14.7, 8.5, 6.7, "авокадо", "fat"],
-    ["Apple", 52, 0.3, 0.2, 13.8, 2.4, "яблоко", "fruit", "medium", 180],
-    ["Banana", 89, 1.1, 0.3, 22.8, 2.6, "банан", "fruit", "medium", 120],
-    ["Berries, mixed", 57, 0.7, 0.3, 14, 2.4, "ягоды", "fruit"],
+    ["Apple", 52, 0.3, 0.2, 13.8, 2.4, "яблоко appel", "fruit", "medium", 180],
+    ["Banana", 89, 1.1, 0.3, 22.8, 2.6, "банан banaan", "fruit", "medium", 120],
+    ["Berries, mixed", 57, 0.7, 0.3, 14, 2.4, "ягоды bosvruchten", "fruit"],
     ["Orange", 47, 0.9, 0.1, 11.8, 2.4, "апельсин", "fruit", "medium", 150],
     ["Pear", 57, 0.4, 0.1, 15, 3.1, "груша", "fruit", "medium", 180],
-    ["Beer 5%", 43, 0.5, 0, 3.6, 0, "пиво", "alcohol", "0.5 L", 500],
-    ["Wine, dry red", 85, 0.1, 0, 2.6, 0, "красное сухое", "alcohol", "glass", 150],
-    ["Vodka 40%", 231, 0, 0, 0, 0, "водка", "alcohol", "shot", 50]
+    ["Beer 5%", 43, 0.5, 0, 3.6, 0, "пиво bier", "alcohol", "0.5 L", 500],
+    ["Wine, dry red", 85, 0.1, 0, 2.6, 0, "красное сухое wijn", "alcohol", "glass", 150],
+    ["Vodka 40%", 231, 0, 0, 0, 0, "водка", "alcohol", "shot", 50],
+    /* --- Dutch staples used by the meal plan (per-100 g reference values) --- */
+    ["Magere kwark 0% (NL)", 52, 9, 0.2, 4, 0, "kwark магерe кварк", "dairy"],
+    ["Chicken thigh fillet, raw", 140, 19, 7, 0, 0, "kipdijfilet куриное бедро", "protein"],
+    ["Wholemeal bread (volkoren)", 240, 9.5, 3, 38, 6.5, "volkorenbrood цельнозерновой хлеб", "grain", "slice", 35],
+    ["Brown rice (zilvervlies), dry", 350, 7.5, 2.8, 71, 3.5, "zilvervliesrijst бурый рис", "grain"],
+    ["Lentils, dry", 330, 25, 1.5, 48, 11, "linzen чечевица сухая", "legume"],
+    ["Chopped tomatoes, canned", 32, 1.6, 0.3, 5.5, 1.5, "tomatenblokjes томаты консерв", "veg"],
+    ["Broccoli", 34, 2.8, 0.4, 5, 2.6, "broccoli брокколи", "veg"],
+    ["Spinach", 23, 2.9, 0.4, 1, 2.2, "spinazie шпинат", "veg"],
+    ["Chickpeas, canned (rinsed)", 120, 7, 2.5, 16, 6, "kikkererwten blik нут консерв", "legume"],
+    ["Kidney beans, canned (rinsed)", 110, 8, 0.5, 15, 6.5, "kidneybonen blik фасоль консерв", "legume"]
   ].map((r, i) => ({
     key: "s" + i, name: r[0], ru: r[6], tag: r[7],
     p100: { k: r[1], p: r[2], f: r[3], c: r[4], fb: r[5] },
     unit: r[8] ? { name: r[8], g: r[9] } : null, seed: true
   }));
+
+  /* ---------- the €100/week Dutch meal plan, as loggable recipes ---------- */
+  const BYNAME = Object.fromEntries(SEED.map(f => [f.name, f]));
+  const RX = {
+    B1: { t: "Kwark, oats, berries & walnuts", m: "breakfast", i: [
+      ["Magere kwark 0% (NL)", 275], ["Oats, dry", 70], ["Berries, mixed", 100], ["Walnuts", 15]] },
+    B2: { t: "Spinach omelette with wholemeal toast", m: "breakfast", i: [
+      ["Egg, whole", 180], ["Spinach", 100], ["Wholemeal bread (volkoren)", 70], ["Magere kwark 0% (NL)", 175], ["Olive oil", 7]] },
+    L1: { t: "Chicken, brown rice & broccoli prep bowl", m: "lunch", i: [
+      ["Chicken breast, raw", 165], ["Brown rice (zilvervlies), dry", 75], ["Broccoli", 200], ["Bell pepper", 80], ["Olive oil", 8]] },
+    L2: { t: "Tuna, chickpea & tomato salad", m: "lunch", i: [
+      ["Tuna, canned in water", 125], ["Chickpeas, canned (rinsed)", 200], ["Tomato", 120], ["Cucumber", 100], ["Onion", 30], ["Olive oil", 12]] },
+    L3: { t: "Lentil & vegetable soup with bread", m: "lunch", i: [
+      ["Lentils, dry", 85], ["Carrot, raw", 100], ["Onion", 60], ["Chopped tomatoes, canned", 200], ["Olive oil", 8], ["Wholemeal bread (volkoren)", 55], ["Magere kwark 0% (NL)", 150]] },
+    D1: { t: "Baked salmon, potatoes & greens", m: "dinner", i: [
+      ["Salmon, raw", 160], ["Potato, raw", 320], ["Broccoli", 150], ["Olive oil", 8]] },
+    D2: { t: "Chicken thigh traybake", m: "dinner", i: [
+      ["Chicken thigh fillet, raw", 175], ["Courgette", 150], ["Bell pepper", 120], ["Onion", 60], ["Potato, raw", 270], ["Olive oil", 10]] },
+    D3: { t: "Bean & vegetable chilli with rice", m: "dinner", i: [
+      ["Kidney beans, canned (rinsed)", 250], ["Chopped tomatoes, canned", 200], ["Bell pepper", 100], ["Onion", 60], ["Carrot, raw", 80], ["Brown rice (zilvervlies), dry", 50], ["Olive oil", 8], ["Chicken breast, raw", 100]] },
+    D4: { t: "Mackerel, potato & spinach hash", m: "dinner", i: [
+      ["Mackerel, raw", 125], ["Potato, raw", 320], ["Spinach", 200], ["Onion", 50], ["Olive oil", 8], ["Magere kwark 0% (NL)", 100]] },
+    S1: { t: "Kwark with banana", m: "snack", i: [["Magere kwark 0% (NL)", 300], ["Banana", 120]] },
+    S2: { t: "Kwark, apple & almonds", m: "snack", i: [["Magere kwark 0% (NL)", 300], ["Apple", 180], ["Almonds", 20]] },
+    S3: { t: "Kwark, berries & almonds", m: "snack", i: [["Magere kwark 0% (NL)", 300], ["Berries, mixed", 80], ["Almonds", 15]] }
+  };
+  /* JS getDay(): 0 = Sunday */
+  const PLAN = { 1: ["B1", "L1", "D1", "S1"], 2: ["B2", "L1", "D2", "S2"], 3: ["B1", "L3", "D3", "S1"],
+    4: ["B2", "L2", "D1", "S3"], 5: ["B1", "L1", "D2", "S2"], 6: ["B2", "L3", "D4", "S1"], 0: ["B1", "L2", "D3", "S3"] };
+  const DAYNAME = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+  const RX_BAD = [];
+  Object.entries(RX).forEach(([k, r]) => r.i.forEach(([nm]) => { if (!BYNAME[nm]) RX_BAD.push(k + ": " + nm); }));
+  if (RX_BAD.length) console.error("Recipe ingredients that do not resolve:", RX_BAD);
+
+  function rxMacros(key) {
+    const t = { k: 0, p: 0, f: 0, c: 0, fb: 0 };
+    for (const [nm, g] of RX[key].i) {
+      const fo = BYNAME[nm];
+      if (!fo) { console.error("unresolved ingredient", nm, "in", key); continue; }
+      const m = g / 100;
+      t.k += fo.p100.k * m; t.p += fo.p100.p * m; t.f += fo.p100.f * m; t.c += fo.p100.c * m; t.fb += (fo.p100.fb || 0) * m;
+    }
+    return t;
+  }
+  /* log every ingredient as its own item so portions stay editable afterwards */
+  function logRecipe(key) {
+    const r = RX[key];
+    (foods[foodDay] ||= []);
+    r.i.forEach(([nm, g], n) => {
+      const fo = BYNAME[nm]; if (!fo) return;
+      foods[foodDay].push({ id: "r" + Date.now() + "_" + key + n, meal: r.m, name: fo.name,
+        brand: "", code: "", key: fo.key, seed: true, unit: fo.unit || null, g, p100: fo.p100, rx: key });
+    });
+    syncEntry(foodDay); save(); renderFood();
+  }
+  const rxLogged = key => dayFoods().some(x => x.rx === key);
 
   const MEALS = [
     { id: "breakfast", label: "Breakfast", light: "#86b6ef", dark: "#9ec5f4" },
@@ -1273,6 +1363,29 @@
       (t.p < tg.protein * 0.5 && t.k > tg.kcal * 0.6
         ? `<span class="down">Protein is lagging behind calories today.</span> Put it right at the next meal.`
         : `Protein first at every meal — it's the target that decides what tissue you lose.`);
+
+    /* today's plan */
+    const dow = parseD(foodDay).getDay(), keys = PLAN[dow];
+    const pt = keys.reduce((a, k) => { const r = rxMacros(k); a.k += r.k; a.p += r.p; return a; }, { k: 0, p: 0 });
+    document.getElementById("planTitle").textContent = `${DAYNAME[dow]}'s plan`;
+    document.getElementById("planTot").textContent = `${Math.round(pt.k)} kcal · ${Math.round(pt.p)} g protein`;
+    document.getElementById("planRows").innerHTML = keys.map(k => {
+      const r = RX[k], mm = rxMacros(k), done = rxLogged(k);
+      return `<div class="fitem">
+        <div class="fi">
+          <div class="fn">${done ? "✓ " : ""}${esc(r.t)}</div>
+          <div class="fm">${MEALS.find(x => x.id === r.m).label} · ${Math.round(mm.k)} kcal · P ${Math.round(mm.p)} · C ${Math.round(mm.c)} · F ${Math.round(mm.f)}</div>
+        </div>
+        <button class="fx" data-rxinfo="${k}" style="padding:5px 9px">i</button>
+        <button class="fx" data-rx="${k}" ${done ? "disabled style='opacity:.4'" : "style='background:var(--series-1);color:#fff;border-color:transparent;font-weight:600;padding:6px 13px'"}>${done ? "logged" : "Log"}</button>
+      </div>`;
+    }).join("");
+    document.querySelectorAll("[data-rx]").forEach(b => b.addEventListener("click", () => logRecipe(b.dataset.rx)));
+    document.querySelectorAll("[data-rxinfo]").forEach(b => b.addEventListener("click", () => openRecipe(b.dataset.rxinfo)));
+    const ldb = document.getElementById("logDayBtn");
+    const allDone = keys.every(rxLogged);
+    ldb.disabled = allDone; ldb.style.opacity = allDone ? .4 : 1;
+    ldb.textContent = allDone ? "Whole day logged ✓" : "Log the whole day";
 
     /* meal breakdown */
     const totals = MEALS.map(m => ({ m, k: mealTotal(m.id) }));
@@ -1381,6 +1494,83 @@
       closeSheet();
     });
   }
+
+  /* ---------- weekly shopping list ---------- */
+  /* [name, need, pack, qty, unitPrice, shop, verified] */
+  const SHOP = [
+    ["Magere kwark 0%", "4125 g", "500 g", 9, 1.29, "Lidl", 1],
+    ["Kipfilet", "695 g", "1 kg", 1, 9.49, "Lidl", 1],
+    ["Kipdijfilet", "350 g", "500 g", 1, 4.49, "Lidl", 0],
+    ["Zalmfilet, diepvries", "320 g", "400 g", 1, 5.99, "Lidl", 0],
+    ["Eieren, vrije uitloop", "9 st", "10 st", 1, 2.49, "Lidl", 0],
+    ["Havermout", "280 g", "1 kg", 1, 1.29, "Lidl", 0],
+    ["Volkorenbrood", "320 g", "800 g", 1, 1.39, "Lidl", 0],
+    ["Kikkererwten, blik", "400 g", "400 g", 2, 0.89, "Lidl", 0],
+    ["Kidneybonen, blik", "500 g", "400 g", 2, 0.89, "Lidl", 0],
+    ["Tomatenblokjes, blik", "800 g", "400 g", 2, 0.65, "Lidl", 0],
+    ["Aardappelen", "1500 g", "2.5 kg", 1, 2.49, "Lidl", 0],
+    ["Broccoli, diepvries", "900 g", "1 kg", 1, 1.99, "Lidl", 0],
+    ["Spinazie, diepvries", "500 g", "450 g", 2, 0.99, "Lidl", 0],
+    ["Paprika", "680 g", "3-pack", 2, 1.99, "Lidl", 0],
+    ["Uien", "470 g", "1 kg", 1, 1.19, "Lidl", 0],
+    ["Winterwortelen", "360 g", "1 kg", 1, 1.09, "Lidl", 0],
+    ["Courgette", "300 g", "per st", 2, 0.80, "Lidl", 0],
+    ["Tomaten", "240 g", "500 g", 1, 1.79, "Lidl", 0],
+    ["Komkommer", "200 g", "per st", 1, 0.89, "Lidl", 0],
+    ["Bosvruchten, diepvries", "560 g", "750 g", 1, 3.99, "Lidl", 0],
+    ["Bananen", "360 g", "1 kg", 1, 1.69, "Lidl", 0],
+    ["Appels", "360 g", "1 kg", 1, 1.99, "Lidl", 0],
+    ["Walnoten", "60 g", "200 g", 1, 2.49, "Lidl", 0],
+    ["Amandelen", "80 g", "200 g", 1, 2.49, "Lidl", 0],
+    ["Olijfolie extra vierge", "145 g", "500 ml", 1, 4.49, "Lidl", 0],
+    ["Knoflook, citroen, kruiden", "—", "diverse", 1, 3.00, "Lidl", 0],
+    ["Tonijn in water", "250 g", "4 x 145 g", 1, 3.49, "Jumbo", 0],
+    ["Zilvervliesrijst", "325 g", "1 kg", 1, 2.29, "Jumbo", 0],
+    ["Makreel in blik", "125 g", "125 g", 1, 1.49, "AH", 0],
+    ["Linzen, droog", "160 g", "500 g", 1, 1.29, "AH", 0]
+  ];
+  function renderShop() {
+    const total = SHOP.reduce((a, r) => a + r[3] * r[4], 0);
+    const got = SHOP.filter((r, i) => ticks[i]).reduce((a, r) => a + r[3] * r[4], 0);
+    document.getElementById("shopTot").textContent = `€${got.toFixed(2)} of €${total.toFixed(2)}`;
+    let html = "";
+    ["Lidl", "Jumbo", "AH"].forEach(shop => {
+      const rows = SHOP.map((r, i) => [r, i]).filter(([r]) => r[5] === shop);
+      const st = rows.reduce((a, [r]) => a + r[3] * r[4], 0);
+      html += `<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;margin:14px 0 2px">${shop} — €${st.toFixed(2)}</div>`;
+      rows.forEach(([r, i]) => {
+        const on = !!ticks[i];
+        html += `<div class="fitem" data-tick="${i}" style="cursor:pointer">
+          <span style="flex:0 0 auto;width:20px;height:20px;border-radius:6px;border:1.5px solid ${on ? "var(--good)" : "var(--axis)"};background:${on ? "var(--good)" : "transparent"};color:#fff;display:grid;place-items:center;font-size:13px">${on ? "✓" : ""}</span>
+          <div class="fi" style="${on ? "opacity:.45;text-decoration:line-through" : ""}">
+            <div class="fn">${esc(r[0])}${r[6] ? " ✓" : ""}</div>
+            <div class="fm">need ${r[1]} · buy ${r[3]} × ${r[2]}</div>
+          </div>
+          <span class="fk">€${(r[3] * r[4]).toFixed(2)}</span></div>`;
+      });
+    });
+    document.getElementById("shopList").innerHTML = html;
+    document.querySelectorAll("[data-tick]").forEach(el => el.addEventListener("click", () => {
+      const i = +el.dataset.tick; ticks[i] = !ticks[i]; save(); renderShop();
+    }));
+  }
+  document.getElementById("shopReset").addEventListener("click", () => { ticks = {}; save(); renderShop(); });
+
+  /* ---------- recipe detail ---------- */
+  function openRecipe(key) {
+    const r = RX[key], m = rxMacros(key);
+    openSheet(`
+      <h3>${esc(r.t)}</h3>
+      <p class="sc">${MEALS.find(x => x.id === r.m).label} · ${Math.round(m.k)} kcal · protein ${Math.round(m.p)} g · carbs ${Math.round(m.c)} g · fat ${Math.round(m.f)} g · fibre ${m.fb.toFixed(1)} g</p>
+      <table class="exl">${r.i.map(([nm, g]) => `<tr><td>${esc(nm)}</td><td style="text-align:right;font-weight:600">${g} g</td></tr>`).join("")}</table>
+      <p class="note">Weights are raw / as-purchased. Logging adds each ingredient separately, so you can change one portion without redoing the meal.</p>
+      <div class="btnrow"><button id="rCancel">Close</button><button class="pri" id="rAdd" ${rxLogged(key) ? "disabled style='opacity:.4'" : ""}>${rxLogged(key) ? "Already logged" : "Log it"}</button></div>`);
+    document.getElementById("rCancel").addEventListener("click", closeSheet);
+    document.getElementById("rAdd").addEventListener("click", () => { logRecipe(key); closeSheet(); });
+  }
+  document.getElementById("logDayBtn").addEventListener("click", () => {
+    PLAN[parseD(foodDay).getDay()].forEach(k => { if (!rxLogged(k)) logRecipe(k); });
+  });
 
   /* ---------- manual entry ---------- */
   function openManual(code, prefill) {
@@ -1515,6 +1705,7 @@
     window.scrollTo({ top: 0 });
     if (name === "trends") requestAnimationFrame(render);
     if (name === "food") renderFood();
+    if (name === "plan") renderShop();
   }
   document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => go(b.dataset.tab)));
 
@@ -1557,7 +1748,7 @@
   document.getElementById("scanSupport").innerHTML = canScan()
     ? "Camera scanning is available on this device. Scanned products are cached locally, so a product you've scanned once works offline afterwards."
     : "<b>This browser has no barcode scanner.</b> Chrome on Android does. Everything else still works — search the library or enter the product by hand.";
-  render(); renderFood();
+  render(); renderFood(); renderShop();
 })();
 </script>
 </body>

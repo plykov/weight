@@ -59,7 +59,7 @@ It now opens full-screen with no browser chrome, works with no signal, and appea
 
 ## Updating it later
 
-Upload a changed `index.html` the same way. Bump the `VERSION` string at the top of `sw.js` (currently `wt-v1.1.0` → `wt-v1.1.1`) in the same commit — that's what tells installed copies to fetch the new version instead of serving the cached one.
+Upload a changed `index.html` the same way. Bump the `VERSION` string at the top of `sw.js` (currently `wt-v1.2.0` → `wt-v1.2.1`) in the same commit — that's what tells installed copies to fetch the new version instead of serving the cached one.
 
 The app then updates on its next launch. Your logged data is untouched by updates.
 
@@ -99,6 +99,20 @@ The seeded library holds **reference values per 100 g** — real brands vary, an
 
 - **Cooking changes weight enormously.** 100 g of dry buckwheat becomes roughly 300 g cooked. Log food in the state you weighed it, and pick the matching library entry (both dry and cooked are included for the common ones).
 - **Open Food Facts is crowd-sourced.** Most entries are accurate; some aren't. If a scanned product's numbers look wrong, edit them — your version is what gets saved.
+
+---
+
+## The €100/week meal plan, built in
+
+The **Food tab** opens with today's plan — the four recipes scheduled for that weekday, each with its calories and macros. Tap **Log** on one, or **Log the whole day** for all four. The `i` button shows the full ingredient list with gram weights before you commit.
+
+Logging a recipe adds **each ingredient as its own entry**, not one lump, so if you ate 200 g of potato instead of 320 g you can fix that one line without redoing the meal.
+
+The **Plan tab** carries the shopping list — 30 items grouped by shop with running subtotals, €87.31 total. Tap to tick items off; it remembers between visits. ✓ marks a price verified against a live product page; the rest are estimates and move with weekly *aanbiedingen*.
+
+The library gained the Dutch staples the plan needs (magere kwark, kipdijfilet, volkorenbrood, zilvervliesrijst, broccoli, spinazie, canned pulses) and Dutch search aliases on the existing ones — `kwark`, `kipfilet`, `havermout`, `aardappel` all resolve now, alongside the Russian names.
+
+> **Magere kwark is not tvorog.** Dutch kwark is ~9 g protein per 100 g; Russian tvorog is ~18 g because it's drained much further. Both are in the library as separate entries — pick the one you actually bought, or the protein maths will be out by a factor of two.
 
 ---
 
