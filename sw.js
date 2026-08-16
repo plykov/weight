@@ -1,12 +1,13 @@
 /* Weight Tracker service worker — offline app shell */
-const VERSION = "wt-v1.2.0";
+const VERSION = "wt-v1.3.1";
 const SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./icon-192.png",
   "./icon-512.png",
-  "./apple-touch-icon.png"
+  "./apple-touch-icon.png",
+  "./recipes.json"
 ];
 
 self.addEventListener("install", e => {
@@ -42,6 +43,15 @@ self.addEventListener("fetch", e => {
           return res;
         })
         .catch(() => caches.match("./index.html").then(r => r || caches.match("./")))
+    );
+    return;
+  }
+
+  // recipes.json: network-first so a new recipe pack lands without an app update.
+  if (url.pathname.endsWith("/recipes.json")) {
+    e.respondWith(
+      fetch(req).then(res => { const c = res.clone(); caches.open(VERSION).then(k => k.put(req, c)); return res; })
+        .catch(() => caches.match(req))
     );
     return;
   }
