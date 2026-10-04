@@ -1,5 +1,5 @@
 /* Weight Tracker service worker — offline app shell */
-const VERSION = "wt-v1.4.0";
+const VERSION = "wt-v1.4.1";
 const SHELL = [
   "./",
   "./index.html",
